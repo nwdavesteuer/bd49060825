@@ -1,177 +1,174 @@
-# iMessage Extractor for Mac
+# iMessage Gift Project
 
-A Python script to extract iMessages from the Mac Messages database for specific contacts. This tool allows you to export your iMessage conversations to CSV format for backup, analysis, or migration purposes.
+A comprehensive toolkit for extracting iMessages from Mac and creating beautiful, searchable gifts from conversation history.
 
-## Features
+## 🎁 Project Overview
 
-- Extract iMessages for specific contacts by phone number, email, or name
-- Export messages to CSV format with timestamps and metadata
-- Automatic backup of the Messages database before extraction
-- Support for both iMessage and SMS conversations
-- List recent contacts with message counts
-- Limit the number of messages extracted
-- User-friendly command-line interface
+This repository contains tools to:
+- Extract iMessages from Mac Messages database
+- Export conversations with images and metadata
+- Create searchable databases for analysis
+- Build interactive web applications for gifts
 
-## Prerequisites
+## 📁 Repository Contents
 
-- macOS (this script only works on Mac)
-- Python 3.6 or higher
-- Messages app must be enabled and have conversations
-- Terminal access
+### Core Extraction Tools
+- `enhanced_imessage_extractor.py` - Main extraction script with JSON export and image support
+- `imessage_extractor.py` - Basic CSV export version
+- `contact_finder.py` - Find contacts in Messages database
+- `message_query_tool.py` - Search and analyze extracted messages
+- `permission_helper.py` - Troubleshoot database access permissions
 
-## Installation
+### Documentation
+- `GIFT_PROJECT_GUIDE.md` - Complete guide for creating iMessage gifts
+- `NITZAN_EXTRACTION_GUIDE.md` - Specific troubleshooting guide
+- `example_usage.py` - Example script showing programmatic usage
 
-1. Clone or download this repository
-2. Install the required dependencies:
+### Configuration
+- `requirements.txt` - Python dependencies
+- `.gitignore` - Excludes sensitive data and large files
 
+## 🚀 Quick Start
+
+### Prerequisites
+- macOS (required for iMessage database access)
+- Python 3.6+
+- Messages app with conversations
+
+### Installation
 ```bash
-pip install -r requirements.txt
+# Clone the repository
+git clone <your-repo-url>
+cd imessage
+
+# Install dependencies
+pip3 install -r requirements.txt
 ```
 
-## Usage
+### Grant Permissions
+1. Open **System Settings** > **Privacy & Security** > **Full Disk Access**
+2. Add **Terminal** (or your terminal app) to the list
+3. Close Messages app
+4. Test permissions: `python3 permission_helper.py`
 
-### Basic Usage
-
-Extract messages for a specific contact:
-
+### Extract Messages
 ```bash
-python imessage_extractor.py --contact "John Doe"
+# Find contacts
+python3 contact_finder.py "contact_name"
+
+# Extract messages
+python3 enhanced_imessage_extractor.py --contact "contact_id" --output messages.json
 ```
 
-### Advanced Usage
+## 🔧 Usage Examples
 
+### Find a Contact
 ```bash
-# Extract messages and save to a specific file
-python imessage_extractor.py --contact "john@example.com" --output my_messages.csv
-
-# Limit the number of messages extracted
-python imessage_extractor.py --contact "+1234567890" --limit 100
-
-# List recent contacts instead of extracting messages
-python imessage_extractor.py --list-contacts
-
-# Use short form arguments
-python imessage_extractor.py -c "John Doe" -o messages.csv -l 50
+python3 contact_finder.py "john"
 ```
 
-### Command Line Arguments
-
-- `--contact`, `-c`: Contact identifier (required)
-  - Can be a phone number: `"+1234567890"`
-  - Can be an email address: `"john@example.com"`
-  - Can be a partial name: `"John"` or `"John Doe"`
-- `--output`, `-o`: Output CSV file path (optional)
-  - If not provided, a default filename will be generated
-- `--limit`, `-l`: Limit number of messages to extract (optional)
-- `--list-contacts`: List recent contacts instead of extracting messages
-
-## Examples
-
-### Extract messages by phone number
+### Extract All Messages
 ```bash
-python imessage_extractor.py --contact "+1234567890"
+python3 enhanced_imessage_extractor.py --contact "+1234567890" --output all_messages.json
 ```
 
-### Extract messages by email
+### Search Extracted Messages
 ```bash
-python imessage_extractor.py --contact "john@example.com"
+python3 message_query_tool.py messages.db --search "love"
 ```
 
-### Extract messages by name
+### Get Conversation Statistics
 ```bash
-python imessage_extractor.py --contact "John Doe"
+python3 message_query_tool.py messages.db --stats
 ```
 
-### Extract last 50 messages and save to specific file
-```bash
-python imessage_extractor.py --contact "John" --limit 50 --output recent_messages.csv
+## 📊 Output Format
+
+The enhanced extractor creates:
+- **JSON file**: Complete message history with metadata
+- **SQLite database**: Searchable database with full-text search
+- **Backup**: Automatic backup of Messages database
+
+### JSON Structure
+```json
+{
+  "metadata": {
+    "contact_identifier": "+1234567890",
+    "extraction_date": "2024-01-15T10:30:00",
+    "total_messages": 5000,
+    "date_range": {
+      "start": "2020-03-15 14:22:33",
+      "end": "2024-01-15 09:45:12"
+    },
+    "conversation_stats": {...}
+  },
+  "messages": [
+    {
+      "message_id": 12345,
+      "text": "Hello!",
+      "date": 1642244553000000000,
+      "is_from_me": true,
+      "readable_date": "2022-01-15 14:22:33",
+      "attachments": [...]
+    }
+  ]
+}
 ```
 
-### List top 20 contacts by message count
-```bash
-python imessage_extractor.py --list-contacts
-```
+## 🎨 Gift Creation
 
-## Output Format
+### Web Application
+- Use the extracted JSON data with React/Next.js
+- Deploy to Vercel for hosting
+- Use Vercel v0 for rapid UI prototyping
 
-The script generates a CSV file with the following columns:
+### Features to Build
+- Timeline view of conversations
+- Image gallery with thumbnails
+- Search and filter functionality
+- Message highlighting and favorites
+- Export selected messages
 
-- `ROWID`: Internal database ID
-- `guid`: Unique message identifier
-- `text`: Message content
-- `date`: Message timestamp (in nanoseconds since 2001)
-- `date_read`: When the message was read
-- `is_from_me`: Whether you sent the message (1) or received it (0)
-- `cache_has_attachments`: Whether the message has attachments
-- `contact_id`: Contact identifier (phone/email)
-- `service`: Message service (iMessage/SMS)
-- `readable_date`: Human-readable timestamp
-- `contact_name`: Contact name
+## 🔒 Privacy & Security
 
-## Important Notes
+⚠️ **Important**: This tool accesses personal message data.
 
-### Security and Privacy
-- The script creates a backup of your Messages database before extraction
-- Backups are stored in `~/Desktop/iMessage_Backup/`
-- The original database is never modified
-- Be careful with extracted data and respect privacy
+- **Backup**: Automatic database backups are created
+- **Local Only**: Data stays on your machine unless you choose to share
+- **Gitignore**: Sensitive files are excluded from version control
+- **Permissions**: Requires explicit user consent for database access
 
-### Database Location
-The Messages database is located at:
-```
-~/Library/Messages/chat.db
-```
+## 🛠️ Troubleshooting
 
-### Permissions
-You may need to grant Terminal access to your Messages database:
-1. Go to System Preferences > Security & Privacy > Privacy
-2. Select "Full Disk Access" from the left sidebar
-3. Click the lock icon and enter your password
-4. Add Terminal (or your terminal app) to the list
+### Permission Issues
+- Grant Terminal "Full Disk Access" in System Preferences
+- Close Messages app before running scripts
+- Use `permission_helper.py` to diagnose issues
 
-### Limitations
-- Only works on macOS
-- Requires Messages app to be set up
-- Some messages may not be accessible due to encryption
-- Group messages are not currently supported
+### Contact Not Found
+- Try different phone number formats
+- Use `contact_finder.py` to see exact contact IDs
+- Check that the contact exists in Messages app
 
-## Troubleshooting
+### Database Schema Issues
+- The enhanced extractor handles different macOS versions
+- Some columns may not exist in older Messages databases
+- Scripts automatically adapt to available schema
 
-### "Messages database not found" error
-- Make sure you're running this on a Mac
-- Ensure the Messages app is installed and set up
-- Check that the database exists at `~/Library/Messages/chat.db`
+## 📝 License
 
-### "No contact found" error
-- Try using the exact phone number or email address
-- Use partial matching (e.g., "John" instead of "John Doe")
-- Check the contact exists in your Messages app
+This project is provided for educational and personal use. Please respect privacy and data protection laws.
 
-### Permission denied errors
-- Grant Terminal full disk access (see Permissions section above)
-- Make sure you have read permissions for the Messages folder
-
-### Database locked errors
-- Close the Messages app before running the script
-- Wait a few minutes and try again
-
-## Data Privacy
-
-⚠️ **Important**: This script accesses your personal message data. Please be aware that:
-
-- Messages may contain sensitive personal information
-- Extracted data should be handled securely
-- Consider the privacy implications before sharing extracted data
-- The script creates backups, so ensure backup storage is secure
-
-## License
-
-This script is provided for educational and personal use. Please respect privacy and data protection laws when using this tool.
-
-## Contributing
+## 🤝 Contributing
 
 Feel free to submit issues, feature requests, or pull requests to improve this tool.
 
-## Disclaimer
+## 📞 Support
 
-This tool is provided as-is without any warranty. Use at your own risk and in compliance with applicable laws and privacy regulations. 
+For detailed troubleshooting, see:
+- `GIFT_PROJECT_GUIDE.md` - Complete project guide
+- `NITZAN_EXTRACTION_GUIDE.md` - Specific troubleshooting steps
+
+---
+
+**Happy gift-making! 🎁💕** 

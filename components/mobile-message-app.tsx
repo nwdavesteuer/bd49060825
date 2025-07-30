@@ -248,11 +248,52 @@ export default function MobileMessageApp() {
   const [error, setError] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [searchMode, setSearchMode] = useState<"all" | "year">("all")
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
   const [yearData, setYearData] = useState<YearData[]>([])
   const [messagesExpanded, setMessagesExpanded] = useState(true)
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null)
   const [showDebug, setShowDebug] = useState(false)
+  const [searchFilters, setSearchFilters] = useState({
+    sender: "",
+    dateRange: "",
+    hasAttachments: false,
+    hasLinks: false,
+    hasEmojis: false
+  })
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
+  const [showSearchPanel, setShowSearchPanel] = useState(false)
+
+  // Generate search suggestions based on message content
+  const generateSearchSuggestions = useMemo(() => {
+    const suggestions: string[] = []
+    const commonWords = new Map<string, number>()
+    
+    // Extract common words from messages
+    messages.forEach(msg => {
+      if (msg.text) {
+        const words = msg.text.toLowerCase().match(/\b\w+\b/g) || []
+        words.forEach(word => {
+          if (word.length > 3) { // Only words longer than 3 characters
+            commonWords.set(word, (commonWords.get(word) || 0) + 1)
+          }
+        })
+      }
+    })
+    
+    // Get top 10 most common words
+    const sortedWords = Array.from(commonWords.entries())
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 10)
+      .map(([word]) => word)
+    
+    suggestions.push(...sortedWords)
+    
+    // Add some predefined interesting searches
+    suggestions.push('cafe', 'restaurant', 'meeting', 'work', 'home', 'travel', 'food', 'coffee', 'dinner', 'lunch')
+    
+    return suggestions
+  }, [messages])
 
   useEffect(() => {
     async function fetchMessages() {
@@ -643,12 +684,12 @@ export default function MobileMessageApp() {
     fetchMessages()
   }, [])
 
-  // Optimized filtering with memoization and pre-computed dates
+  // Enhanced filtering with advanced search capabilities
   const filteredMessages = useMemo(() => {
     let filtered = messages
 
-    if (selectedYear) {
-      // Use pre-computed year if available, otherwise parse once
+    // Year filter (only apply if search mode is "year" or no search mode selected)
+    if (selectedYear && (searchMode === "year" || !searchQuery)) {
       filtered = filtered.filter((msg) => {
         if (msg.year) return msg.year === selectedYear
         const { year } = parseMessageDate(msg.readable_date)
@@ -656,13 +697,87 @@ export default function MobileMessageApp() {
       })
     }
 
+    // Text search with multiple modes
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
-      filtered = filtered.filter((msg) => msg.text.toLowerCase().includes(query))
+      
+      // Check if it's a special search command
+      if (query.startsWith('/')) {
+        const command = query.slice(1).split(' ')[0]
+        const searchTerm = query.slice(command.length + 2)
+        
+        switch (command) {
+          case 'sender':
+            filtered = filtered.filter((msg) => 
+              msg.sender?.toLowerCase().includes(searchTerm)
+            )
+            break
+          case 'date':
+            filtered = filtered.filter((msg) => 
+              msg.readable_date?.includes(searchTerm)
+            )
+            break
+          case 'link':
+            filtered = filtered.filter((msg) => 
+              msg.text?.toLowerCase().includes('http') || 
+              msg.links?.toLowerCase().includes(searchTerm)
+            )
+            break
+          case 'emoji':
+            filtered = filtered.filter((msg) => 
+              msg.emojis || msg.text?.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u)
+            )
+            break
+          case 'attachment':
+            filtered = filtered.filter((msg) => 
+              msg.has_attachments === 1 || msg.has_attachments === "1"
+            )
+            break
+          default:
+            // Regular text search
+            filtered = filtered.filter((msg) => 
+              msg.text?.toLowerCase().includes(query) ||
+              msg.sender?.toLowerCase().includes(query) ||
+              msg.recipient?.toLowerCase().includes(query)
+            )
+        }
+      } else {
+        // Regular text search across all fields
+        filtered = filtered.filter((msg) => 
+          msg.text?.toLowerCase().includes(query) ||
+          msg.sender?.toLowerCase().includes(query) ||
+          msg.recipient?.toLowerCase().includes(query)
+        )
+      }
+    }
+
+    // Advanced filters
+    if (searchFilters.sender) {
+      filtered = filtered.filter((msg) => 
+        msg.sender?.toLowerCase().includes(searchFilters.sender.toLowerCase())
+      )
+    }
+
+    if (searchFilters.hasAttachments) {
+      filtered = filtered.filter((msg) => 
+        msg.has_attachments === 1 || msg.has_attachments === "1"
+      )
+    }
+
+    if (searchFilters.hasLinks) {
+      filtered = filtered.filter((msg) => 
+        msg.text?.toLowerCase().includes('http') || msg.links
+      )
+    }
+
+    if (searchFilters.hasEmojis) {
+      filtered = filtered.filter((msg) => 
+        msg.emojis || msg.text?.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u)
+      )
     }
 
     return filtered
-  }, [messages, selectedYear, searchQuery])
+  }, [messages, selectedYear, searchQuery, searchFilters])
 
   // Optimized message grouping with memoization
   const messageGroups = useMemo(() => groupMessagesByTime(filteredMessages), [filteredMessages])
@@ -745,12 +860,37 @@ export default function MobileMessageApp() {
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search"
+              placeholder={searchMode === "all" ? "Search all messages..." : "Search this year..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400 rounded-full"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-200"
+              >
+                ×
+              </button>
+            )}
           </div>
+
+          <Button
+            size="sm"
+            onClick={() => setShowSearchPanel(!showSearchPanel)}
+            className={`rounded-lg p-2 ${showSearchPanel ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-600 hover:bg-gray-700"}`}
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => setSearchMode(searchMode === "all" ? "year" : "all")}
+            className={`rounded-lg p-2 ${searchMode === "all" ? "bg-green-600 hover:bg-green-700" : "bg-orange-600 hover:bg-orange-700"}`}
+            title={searchMode === "all" ? "Search all messages" : "Search this year only"}
+          >
+            {searchMode === "all" ? "🌍" : "📅"}
+          </Button>
 
           <Button
             size="sm"
@@ -777,6 +917,153 @@ export default function MobileMessageApp() {
           </Button>
         </div>
       </div>
+
+      {/* Search Panel */}
+      {showSearchPanel && (
+        <div className="bg-blue-900 border-b border-blue-700 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <h3 className="text-blue-200 font-semibold mb-3">🔍 Advanced Search</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-blue-300 text-sm">Search Mode</label>
+                  <div className="flex gap-2 mt-1">
+                    <button
+                      onClick={() => setSearchMode("all")}
+                      className={`px-3 py-1 rounded text-xs ${
+                        searchMode === "all" 
+                          ? "bg-blue-600 text-white" 
+                          : "bg-gray-600 text-gray-300"
+                      }`}
+                    >
+                      All Messages
+                    </button>
+                    <button
+                      onClick={() => setSearchMode("year")}
+                      className={`px-3 py-1 rounded text-xs ${
+                        searchMode === "year" 
+                          ? "bg-blue-600 text-white" 
+                          : "bg-gray-600 text-gray-300"
+                      }`}
+                    >
+                      This Year Only
+                    </button>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-blue-300 text-sm">Quick Filters</label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ ...prev, hasAttachments: !prev.hasAttachments }))}
+                      className={`px-2 py-1 rounded text-xs ${
+                        searchFilters.hasAttachments 
+                          ? "bg-green-600 text-white" 
+                          : "bg-gray-600 text-gray-300"
+                      }`}
+                    >
+                      📎 Attachments
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ ...prev, hasLinks: !prev.hasLinks }))}
+                      className={`px-2 py-1 rounded text-xs ${
+                        searchFilters.hasLinks 
+                          ? "bg-green-600 text-white" 
+                          : "bg-gray-600 text-gray-300"
+                      }`}
+                    >
+                      🔗 Links
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ ...prev, hasEmojis: !prev.hasEmojis }))}
+                      className={`px-2 py-1 rounded text-xs ${
+                        searchFilters.hasEmojis 
+                          ? "bg-green-600 text-white" 
+                          : "bg-gray-600 text-gray-300"
+                      }`}
+                    >
+                      😊 Emojis
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-blue-200 font-semibold mb-3">💡 Search Tips</h3>
+              <div className="text-blue-300 text-xs space-y-2">
+                <p><strong>Commands:</strong></p>
+                <ul className="space-y-1 ml-2">
+                  <li><code>/sender david</code> - Find messages from David</li>
+                  <li><code>/date 2025</code> - Find messages from 2025</li>
+                  <li><code>/link</code> - Find messages with links</li>
+                  <li><code>/emoji</code> - Find messages with emojis</li>
+                  <li><code>/attachment</code> - Find messages with attachments</li>
+                </ul>
+                <p className="mt-2"><strong>Discovery:</strong></p>
+                <ul className="space-y-1 ml-2">
+                  <li>• Search across all years for patterns</li>
+                  <li>• Use filters to find specific content types</li>
+                  <li>• Combine search with year selection</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-blue-200 font-semibold mb-3">🔥 Trending Topics</h3>
+              <div className="text-blue-300 text-xs">
+                <p className="mb-2">Popular words in your conversations:</p>
+                <div className="flex flex-wrap gap-1">
+                  {generateSearchSuggestions.slice(0, 8).map((word, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSearchQuery(word)}
+                      className="px-2 py-1 bg-blue-800 hover:bg-blue-700 rounded text-xs"
+                    >
+                      {word}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search Suggestions */}
+      {searchQuery && searchQuery.length > 0 && (
+        <div className="bg-gray-800 border-b border-gray-700 p-3">
+          <div className="flex items-center gap-4 text-xs">
+            <span className="text-gray-400">Quick searches:</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSearchQuery(`/sender ${searchQuery}`)}
+                className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-gray-300"
+              >
+                Sender
+              </button>
+              <button
+                onClick={() => setSearchQuery(`/date ${searchQuery}`)}
+                className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-gray-300"
+              >
+                Date
+              </button>
+              <button
+                onClick={() => setSearchFilters(prev => ({ ...prev, hasLinks: true }))}
+                className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-gray-300"
+              >
+                With Links
+              </button>
+              <button
+                onClick={() => setSearchFilters(prev => ({ ...prev, hasEmojis: true }))}
+                className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-gray-300"
+              >
+                With Emojis
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Debug Panel */}
       {showDebug && debugInfo && (
@@ -968,10 +1255,16 @@ export default function MobileMessageApp() {
               <div>
                 <h1 className="font-semibold text-gray-100">
                   {selectedYear ? `Messages from ${selectedYear}` : "All Messages"}
+                  {searchMode === "all" && searchQuery && (
+                    <span className="text-blue-400 text-sm ml-2">(Searching all years)</span>
+                  )}
                 </h1>
                 <p className="text-xs text-gray-400">
                   {filteredMessages.length.toLocaleString()} messages
                   {searchQuery && ` matching "${searchQuery}"`}
+                  {searchFilters.hasAttachments && " 📎"}
+                  {searchFilters.hasLinks && " 🔗"}
+                  {searchFilters.hasEmojis && " 😊"}
                 </p>
               </div>
               <Calendar className="h-5 w-5 text-gray-400" />

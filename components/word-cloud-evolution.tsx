@@ -33,10 +33,10 @@ export default function WordCloudEvolution() {
     setLoading(true)
     try {
       const { data, error } = await supabase
-        .from("messages")
-        .select("content, year")
-        .not("content", "is", null)
-        .order("year", { ascending: true })
+        .from("fulldata_set")
+        .select("text, readable_date")
+        .not("text", "is", null)
+        .order("readable_date", { ascending: true })
 
       if (error) throw error
 
@@ -44,11 +44,12 @@ export default function WordCloudEvolution() {
       const yearGroups: { [year: number]: string[] } = {}
 
       data?.forEach((message) => {
-        if (!yearGroups[message.year]) {
-          yearGroups[message.year] = []
+        const year = new Date(message.readable_date).getFullYear()
+        if (!yearGroups[year]) {
+          yearGroups[year] = []
         }
-        if (message.content) {
-          yearGroups[message.year].push(message.content.toLowerCase())
+        if (message.text) {
+          yearGroups[year].push(message.text.toLowerCase())
         }
       })
 

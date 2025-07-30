@@ -29,7 +29,7 @@ export function DatabaseTroubleshooter() {
       // Get table info
       const { data: tableInfo, error: tableError } = await supabase
         .rpc("get_table_info", {
-          table_name: "david_nitzan_all_messages",
+          table_name: "fulldata_set",
         })
         .catch(() => ({ data: null, error: { message: "get_table_info function not available" } }))
 
@@ -37,17 +37,17 @@ export function DatabaseTroubleshooter() {
       const { data: columnInfo, error: columnError } = await supabase
         .from("information_schema.columns")
         .select("column_name, data_type")
-        .eq("table_name", "david_nitzan_all_messages")
+        .eq("table_name", "fulldata_set")
         .catch(() => ({ data: null, error: { message: "Could not access schema information" } }))
 
       // Get sample data
       const { data: sampleData, error: sampleError } = await supabase
-        .from("david_nitzan_all_messages")
+        .from("fulldata_set")
         .select("*")
         .limit(5)
 
       // Count messages
-      const { data: countData, error: countError } = await supabase.from("david_nitzan_all_messages").select("count(*)")
+      const { data: countData, error: countError } = await supabase.from("fulldata_set").select("count(*)")
 
       setResults({
         connection: !connectionError,

@@ -27,9 +27,9 @@ export default function ImageDataAnalyzer() {
     try {
       // Get messages with attachments
       const { data: attachmentMessages, error: attachmentError } = await supabase
-        .from("messages")
+        .from("fulldata_set")
         .select("*")
-        .or("message_type.eq.image,metadata->>has_attachments.eq.true,metadata->>has_attachments.eq.1")
+        .eq("has_attachments", 1)
         .limit(50)
 
       if (attachmentError) throw attachmentError
@@ -45,12 +45,12 @@ export default function ImageDataAnalyzer() {
       // Analyze metadata structure
       const metadataStructure = attachmentMessages.slice(0, 10).map((msg, index) => ({
         messageIndex: index,
-        id: msg.id,
-        content: msg.content?.substring(0, 100),
-        metadata: msg.metadata,
-        metadataKeys: msg.metadata ? Object.keys(msg.metadata) : [],
-        hasAttachments: msg.metadata?.attachments || [],
-        attachmentCount: msg.metadata?.attachment_count || 0,
+        id: msg.message_id,
+        content: msg.text?.substring(0, 100),
+        metadata: msg.attachments_info,
+        metadataKeys: msg.attachments_info ? Object.keys({ attachments_info: msg.attachments_info }) : [],
+        hasAttachments: msg.attachments_info ? [msg.attachments_info] : [],
+        attachmentCount: msg.has_attachments === 1 ? 1 : 0,
       }))
 
       // Look for possible image paths or URLs
@@ -58,30 +58,13 @@ export default function ImageDataAnalyzer() {
       const attachmentTypes: Record<string, number> = {}
 
       attachmentMessages.forEach((msg) => {
-        // Check metadata for image paths
-        if (msg.metadata?.attachments && Array.isArray(msg.metadata.attachments)) {
-          msg.metadata.attachments.forEach((attachment: any) => {
-            if (typeof attachment === "string") {
-              possibleImagePaths.push(attachment)
-            } else if (attachment && typeof attachment === "object") {
-              // Look for common image path properties
-              const pathProps = ["path", "url", "filename", "file_path", "attachment_path", "guid"]
-              pathProps.forEach((prop) => {
-                if (attachment[prop]) {
-                  possibleImagePaths.push(String(attachment[prop]))
-                }
-              })
-
-              // Count attachment types
-              if (attachment.type) {
-                attachmentTypes[attachment.type] = (attachmentTypes[attachment.type] || 0) + 1
-              }
-            }
-          })
+        // Check attachments_info for image paths
+        if (msg.attachments_info) {
+          possibleImagePaths.push(msg.attachments_info)
         }
 
         // Check for image references in content
-        const content = msg.content || ""
+        const content = msg.text || ""
         const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".heic", ".webp", ".bmp"]
         imageExtensions.forEach((ext) => {
           if (content.toLowerCase().includes(ext)) {
@@ -92,15 +75,15 @@ export default function ImageDataAnalyzer() {
 
       // Sample attachments for detailed view
       const sampleAttachments = attachmentMessages.slice(0, 20).map((msg) => ({
-        id: msg.id,
-        content: msg.content,
+        id: msg.message_id,
+        content: msg.text,
         sender: msg.sender,
-        date: msg.date_sent,
-        messageType: msg.message_type,
-        metadata: msg.metadata,
-        attachments: msg.metadata?.attachments || [],
-        attachmentCount: msg.metadata?.attachment_count || 0,
-        hasAttachmentsFlag: msg.metadata?.has_attachments,
+        date: msg.readable_date,
+        messageType: msg.has_attachments ? 'attachment' : 'text',
+        metadata: msg.attachments_info,
+        attachments: msg.attachments_info ? [msg.attachments_info] : [],
+        attachmentCount: msg.has_attachments === 1 ? 1 : 0,
+        hasAttachmentsFlag: msg.has_attachments,
       }))
 
       setAnalysis({

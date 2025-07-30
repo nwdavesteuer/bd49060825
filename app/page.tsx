@@ -93,45 +93,15 @@ export default function HomePage() {
                 </CardContent>
               </Card>
 
-              {/* Connection Test */}
+              {/* Word Evolution */}
               <Card className="hover:shadow-md transition-shadow">
                 <CardContent className="pt-4">
                   <div className="text-center">
-                    <Settings className="h-8 w-8 text-gray-600 mx-auto mb-2" />
-                    <h3 className="font-medium mb-2">Connection Test</h3>
-                    <Link href="/connection-test">
+                    <BarChart3 className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                    <h3 className="font-medium mb-2">Word Evolution</h3>
+                    <Link href="/word-evolution">
                       <Button variant="outline" size="sm">
-                        Test Connection
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Data Import */}
-              <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="pt-4">
-                  <div className="text-center">
-                    <Calendar className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-                    <h3 className="font-medium mb-2">Data Import</h3>
-                    <Link href="/schema-mapper">
-                      <Button variant="outline" size="sm">
-                        Import Data
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Troubleshoot */}
-              <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="pt-4">
-                  <div className="text-center">
-                    <Smartphone className="h-8 w-8 text-indigo-600 mx-auto mb-2" />
-                    <h3 className="font-medium mb-2">Troubleshoot</h3>
-                    <Link href="/troubleshoot">
-                      <Button variant="outline" size="sm">
-                        Debug Issues
+                        View Evolution
                       </Button>
                     </Link>
                   </div>

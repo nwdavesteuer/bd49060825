@@ -25,3 +25,25 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Large data files - these should not be in the repository
+*.csv
+*.json
+*.sql
+*.db
+*.sqlite
+*.sqlite3
+
+# Archive directories with large files
+/archive/
+/backups/
+/final_datasets/
+
+# Temporary files
+/temp/
+*.tmp
+*.temp
+
+# Build artifacts
+*.log
+*.out

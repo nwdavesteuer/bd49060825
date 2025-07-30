@@ -376,13 +376,44 @@ export default function MobileMessageApp() {
 
         console.log("🎯 FINAL 2016 ANALYSIS:", year2016Analysis)
 
-        // Step 3: Get ALL messages without any limit
-        console.log("Step 3: Fetching ALL messages (no limit)...")
+        // Step 3: Get ALL messages with pagination to handle large datasets
+        console.log("Step 3: Fetching ALL messages with pagination...")
         const startTime = Date.now()
-        const { data, error: fetchError } = await supabase
-          .from(TABLE_NAME)
-          .select("*")
-          .order("readable_date", { ascending: true })
+        
+        let allData: any[] = []
+        let hasMore = true
+        let page = 0
+        const pageSize = 1000
+        
+        while (hasMore) {
+          console.log(`Fetching page ${page + 1} (${pageSize} records)...`)
+          const { data: pageData, error: fetchError } = await supabase
+            .from(TABLE_NAME)
+            .select("*")
+            .order("readable_date", { ascending: true })
+            .range(page * pageSize, (page + 1) * pageSize - 1)
+          
+          if (fetchError) {
+            console.error("❌ Page fetch error:", fetchError)
+            throw fetchError
+          }
+          
+          if (pageData && pageData.length > 0) {
+            allData = allData.concat(pageData)
+            console.log(`✅ Page ${page + 1} loaded: ${pageData.length} records`)
+            page++
+          } else {
+            hasMore = false
+          }
+          
+          // Safety check to prevent infinite loops
+          if (page > 20) {
+            console.warn("⚠️ Stopping pagination after 20 pages to prevent infinite loop")
+            hasMore = false
+          }
+        }
+        
+        const data = allData
 
         const queryTime = Date.now() - startTime
         console.log(`✅ Main query completed in ${queryTime}ms`)
@@ -420,7 +451,8 @@ export default function MobileMessageApp() {
 
             const parsedDate = new Date(originalDate)
             const year = parsedDate.getFullYear()
-            const isValid = !isNaN(parsedDate.getTime()) && year > 1900 && year < 2030
+            // More lenient validation - accept any reasonable date
+            const isValid = !isNaN(parsedDate.getTime()) && year >= 1900 && year <= 2030
 
             if (isValid) {
               validDates++
@@ -439,6 +471,7 @@ export default function MobileMessageApp() {
               }
             } else {
               invalidDates++
+              console.log(`⚠️ Invalid date found: ${originalDate} at index ${index}`)
             }
 
             // Store detailed info for first 20 messages
@@ -453,6 +486,7 @@ export default function MobileMessageApp() {
             }
           } catch (e) {
             invalidDates++
+            console.log(`⚠️ Date parsing error at index ${index}:`, e)
           }
         })
 
@@ -471,7 +505,8 @@ export default function MobileMessageApp() {
           try {
             const messageDate = new Date(msg.readable_date)
             const year = messageDate.getFullYear()
-            const isValidDate = !isNaN(messageDate.getTime()) && year > 1900 && year < 2030
+            // More lenient date validation
+            const isValidDate = !isNaN(messageDate.getTime()) && year >= 1900 && year <= 2030
 
             if (isValidDate) {
               normalizedMessages.push({
@@ -496,9 +531,12 @@ export default function MobileMessageApp() {
                 month: messageDate.getMonth() + 1,
                 day: messageDate.getDate(),
               })
+            } else {
+              console.log(`⚠️ Skipping message with invalid date: ${msg.readable_date}`)
             }
           } catch (e) {
             processingErrors++
+            console.log(`⚠️ Processing error at index ${index}:`, e)
           }
         })
 
@@ -526,9 +564,11 @@ export default function MobileMessageApp() {
             cutoffDate: "DISABLED",
           },
           supabaseQueryInfo: {
-            queryExecuted: `SELECT * FROM ${TABLE_NAME} ORDER BY readable_date ASC`,
+            queryExecuted: `SELECT * FROM ${TABLE_NAME} ORDER BY readable_date ASC (PAGINATED)`,
             limitApplied: false,
             orderBy: "readable_date ASC",
+            pagesFetched: page,
+            totalRecordsExpected: exactCount,
           },
           year2016Analysis,
           dateRangeAnalysis,
@@ -605,9 +645,9 @@ export default function MobileMessageApp() {
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Hunting for 2016 messages in {TABLE_NAME}...</p>
-          <p className="text-xs text-gray-500 mt-2">Running multiple queries to find 2016 data...</p>
-          <p className="text-xs text-yellow-400 mt-1">Check console for detailed hunt progress</p>
+          <p className="text-gray-400">Loading all messages from {TABLE_NAME}...</p>
+          <p className="text-xs text-gray-500 mt-2">Fetching data with pagination (15,000+ messages)</p>
+          <p className="text-xs text-yellow-400 mt-1">Check console for detailed progress</p>
         </div>
       </div>
     )
@@ -725,7 +765,8 @@ export default function MobileMessageApp() {
             <div className="bg-green-800 p-3 rounded">
               <h4 className="text-green-300 font-medium mb-2">Processing</h4>
               <p className="text-green-100">Processed: {messages.length}</p>
-              <p className="text-green-100">Filter: {debugInfo.filteringResults.cutoffDate}</p>
+              <p className="text-green-100">Pages: {debugInfo.supabaseQueryInfo.pagesFetched || 0}</p>
+              <p className="text-green-100">Expected: {debugInfo.supabaseQueryInfo.totalRecordsExpected || 0}</p>
               <p className="text-green-100">2016 Final: {yearData.find((y) => y.year === 2016)?.count || 0}</p>
             </div>
 

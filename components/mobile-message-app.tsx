@@ -263,8 +263,25 @@ export default function MobileMessageApp() {
   })
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
   const [showSearchPanel, setShowSearchPanel] = useState(false)
-  const [totalWordCount, setTotalWordCount] = useState(0)
   const [loadingProgress, setLoadingProgress] = useState(0)
+  
+  // Pre-calculated insights from the full dataset
+  const insights = {
+    totalWords: 470263,
+    messageCount: 40216,
+    wordsPerMessage: 12,
+    loveCount: 2883,
+    loveFromDavid: 1349,
+    loveFromNitzan: 1534,
+    lovePerMessage: 7.2,
+    pickUpOrliCount: 131,
+    iLoveYouCount: 479,
+    missYouCount: 111,
+    coffeeCount: 73,
+    foodCount: 1152,
+    emojiCount: 274,
+    emojiPerMessage: 0.7
+  }
 
   // Generate search suggestions based on message content
   const generateSearchSuggestions = useMemo(() => {
@@ -315,6 +332,8 @@ export default function MobileMessageApp() {
         setTimeout(() => setLoadingProgress(3), 2500)
         setTimeout(() => setLoadingProgress(4), 3500)
         setTimeout(() => setLoadingProgress(5), 4500)
+        setTimeout(() => setLoadingProgress(6), 5500)
+        setTimeout(() => setLoadingProgress(7), 6500)
 
         // Step 1: Get exact count from database
         console.log("Step 1: Getting exact count...")
@@ -506,6 +525,8 @@ export default function MobileMessageApp() {
           return
         }
 
+
+
         // Step 4: Analyze ALL dates to find 2016
         console.log("=== ANALYZING ALL DATES FOR 2016 ===")
         const dateParsingResults: any[] = []
@@ -665,18 +686,6 @@ export default function MobileMessageApp() {
         })
 
         setMessages(normalizedMessages)
-
-        // Calculate total word count
-        const wordCount = normalizedMessages.reduce((total, msg) => {
-          if (msg.text && typeof msg.text === 'string') {
-            const words = msg.text.trim().split(/\s+/).filter(word => word.length > 0)
-            return total + words.length
-          }
-          return total
-        }, 0)
-        
-        setTotalWordCount(wordCount)
-        console.log(`📝 Total word count: ${wordCount.toLocaleString()}`)
 
         const years = Object.keys(finalYearCounts)
           .map((year) => Number.parseInt(year))
@@ -885,9 +894,9 @@ export default function MobileMessageApp() {
                   opacity: loadingProgress >= 3 ? 1 : 0
                 }}
               >
-                We've so far written{' '}
+                We've written{' '}
                 <span className="font-semibold text-yellow-300 animate-pulse">
-                  {totalWordCount.toLocaleString()}
+                  {insights.totalWords.toLocaleString()}
                 </span>{' '}
                 words
               </div>
@@ -901,16 +910,40 @@ export default function MobileMessageApp() {
                   opacity: loadingProgress >= 4 ? 1 : 0
                 }}
               >
-                in 10 years.
+                and said "love" {insights.loveCount.toLocaleString()} times.
               </div>
             </div>
 
             <div className="overflow-hidden">
               <div 
-                className="text-xl font-medium text-white transform transition-all duration-1000 ease-out delay-2000"
+                className="text-lg text-green-200 transform transition-all duration-1000 ease-out delay-2000"
                 style={{
                   transform: loadingProgress >= 5 ? 'translateY(0)' : 'translateY(20px)',
                   opacity: loadingProgress >= 5 ? 1 : 0
+                }}
+              >
+                Including {insights.iLoveYouCount} "I love you"s 💕
+              </div>
+            </div>
+
+            <div className="overflow-hidden">
+              <div 
+                className="text-lg text-orange-200 transform transition-all duration-1000 ease-out delay-2500"
+                style={{
+                  transform: loadingProgress >= 6 ? 'translateY(0)' : 'translateY(20px)',
+                  opacity: loadingProgress >= 6 ? 1 : 0
+                }}
+              >
+                And {insights.pickUpOrliCount} "pick up Orli"s 👶
+              </div>
+            </div>
+
+            <div className="overflow-hidden">
+              <div 
+                className="text-xl font-medium text-white transform transition-all duration-1000 ease-out delay-3000"
+                style={{
+                  transform: loadingProgress >= 7 ? 'translateY(0)' : 'translateY(20px)',
+                  opacity: loadingProgress >= 7 ? 1 : 0
                 }}
               >
                 and counting...
@@ -923,11 +956,11 @@ export default function MobileMessageApp() {
             <div className="bg-gray-800 rounded-full h-2 overflow-hidden">
               <div 
                 className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 h-full rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${(loadingProgress / 5) * 100}%` }}
+                style={{ width: `${(loadingProgress / 7) * 100}%` }}
               />
             </div>
             <p className="text-xs text-gray-400 mt-2">
-              Loading your love story... {Math.round((loadingProgress / 5) * 100)}%
+              Loading your love story... {Math.round((loadingProgress / 7) * 100)}%
             </p>
           </div>
 

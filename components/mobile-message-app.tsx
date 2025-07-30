@@ -1296,6 +1296,9 @@ export default function MobileMessageApp() {
 
                 <div>
                   <label className="text-blue-300 text-sm">Emotion Filters</label>
+                  <div className="text-xs text-gray-400 mb-2">
+                    Debug: {JSON.stringify(emotionCounts)}
+                  </div>
                   <div className="grid grid-cols-3 gap-2 mt-1">
                     <button
                       onClick={() => setSearchFilters(prev => ({ 

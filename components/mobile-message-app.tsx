@@ -328,6 +328,8 @@ export default function MobileMessageApp() {
   const emotionCounts = useMemo(() => {
     console.log('🎭 Starting emotion count calculation...')
     console.log('   Messages available:', messages.length)
+    console.log('   Loading state:', loading)
+    console.log('   Error state:', error)
     
     const counts = {
       love: 0,
@@ -357,6 +359,12 @@ export default function MobileMessageApp() {
     let messagesWithEmotions = 0
     let neutralCount = 0
 
+    // Only process if we have messages and they're not still loading
+    if (messages.length === 0 || loading) {
+      console.log('🎭 Skipping emotion count - no messages or still loading')
+      return counts
+    }
+    
     messages.forEach((msg, index) => {
       if (!msg.text) return
       totalMessages++

@@ -178,7 +178,14 @@ function MessageBubble({
 
   const colorClasses = isFromMe ? "bg-blue-600 text-white ml-auto" : "bg-gray-700 text-gray-100 mr-auto"
 
-  return <div className={`${baseClasses} ${colorClasses} ${getCornerClasses()}`}>{message.text}</div>
+  // Show placeholder for empty messages
+  const displayText = message.text && message.text.trim() !== '' 
+    ? message.text 
+    : message.has_attachments === 1 || message.has_attachments === "1"
+      ? "[Attachment]"
+      : "[Message]"
+  
+  return <div className={`${baseClasses} ${colorClasses} ${getCornerClasses()}`}>{displayText}</div>
 }
 
 function MessageGroup({ group }: { group: MessageGroup }) {
@@ -510,8 +517,9 @@ export default function MobileMessageApp() {
         console.log("- 2016 messages found in parsing:", found2016InParsing)
         console.log("- Year distribution:", yearDistribution)
 
-        // Step 5: Process messages (NO FILTERING)
-        console.log("=== MESSAGE PROCESSING (NO FILTERING) ===")
+        // Step 5: Process messages (INCLUDE ALL MESSAGES)
+        console.log("=== MESSAGE PROCESSING (INCLUDING ALL MESSAGES) ===")
+        
         const normalizedMessages: Message[] = []
         let processingErrors = 0
 
@@ -936,9 +944,6 @@ export default function MobileMessageApp() {
                                 }`}
                               />
                               <span>{yearInfo.year}</span>
-                              {yearInfo.year === 2016 && (
-                                <span className="text-xs text-purple-400 font-medium">FOUND</span>
-                              )}
                             </div>
                             <span className="text-xs bg-gray-600 px-2 py-1 rounded-full">
                               {yearInfo.count.toLocaleString()}
@@ -952,36 +957,7 @@ export default function MobileMessageApp() {
               </div>
             </div>
 
-            <div className="border-t border-gray-700">
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Bell className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-400">2016 Hunt</span>
-                  </div>
-                  <div
-                    className={`text-white text-xs rounded-full px-2 py-1 ${
-                      debugInfo?.year2016Analysis.found ? "bg-green-500" : "bg-red-500"
-                    }`}
-                  >
-                    {debugInfo?.year2016Analysis.found ? "Found" : "Missing"}
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-medium text-white">2016</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-100">
-                      {debugInfo?.year2016Analysis.found ? "Data Found" : "Data Missing"}
-                    </div>
-                    <div className="text-xs text-gray-400">{debugInfo?.year2016Analysis.count || 0} messages</div>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 

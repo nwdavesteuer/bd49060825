@@ -263,6 +263,8 @@ export default function MobileMessageApp() {
   })
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
   const [showSearchPanel, setShowSearchPanel] = useState(false)
+  const [totalWordCount, setTotalWordCount] = useState(0)
+  const [loadingProgress, setLoadingProgress] = useState(0)
 
   // Generate search suggestions based on message content
   const generateSearchSuggestions = useMemo(() => {
@@ -300,10 +302,19 @@ export default function MobileMessageApp() {
       try {
         setLoading(true)
         setError(null)
+        setLoadingProgress(0)
+        setTotalWordCount(0)
 
         console.log("=== COMPREHENSIVE 2016 MESSAGE HUNT ===")
         console.log("Fetching from table:", TABLE_NAME)
         console.log("Timestamp:", new Date().toISOString())
+
+        // Start the loading animation
+        setTimeout(() => setLoadingProgress(1), 500)
+        setTimeout(() => setLoadingProgress(2), 1500)
+        setTimeout(() => setLoadingProgress(3), 2500)
+        setTimeout(() => setLoadingProgress(4), 3500)
+        setTimeout(() => setLoadingProgress(5), 4500)
 
         // Step 1: Get exact count from database
         console.log("Step 1: Getting exact count...")
@@ -655,6 +666,18 @@ export default function MobileMessageApp() {
 
         setMessages(normalizedMessages)
 
+        // Calculate total word count
+        const wordCount = normalizedMessages.reduce((total, msg) => {
+          if (msg.text && typeof msg.text === 'string') {
+            const words = msg.text.trim().split(/\s+/).filter(word => word.length > 0)
+            return total + words.length
+          }
+          return total
+        }, 0)
+        
+        setTotalWordCount(wordCount)
+        console.log(`📝 Total word count: ${wordCount.toLocaleString()}`)
+
         const years = Object.keys(finalYearCounts)
           .map((year) => Number.parseInt(year))
           .sort((a, b) => a - b) // Changed to ascending order: 2015 first, 2025 last
@@ -819,15 +842,102 @@ export default function MobileMessageApp() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading all messages from {TABLE_NAME}...</p>
-          <p className="text-xs text-gray-500 mt-2">Fetching data with pagination (44,000+ messages)</p>
-          <p className="text-xs text-yellow-400 mt-1">Check console for detailed progress</p>
-          <div className="mt-4 text-xs text-gray-400">
-            <p>Optimized for performance with virtual scrolling</p>
-            <p>Large datasets will be loaded in chunks</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 flex items-center justify-center">
+        <div className="text-center max-w-2xl mx-auto px-6">
+          {/* Animated Heart */}
+          <div className="mb-8">
+            <div className="animate-pulse">
+              <div className="text-6xl mb-4">💕</div>
+            </div>
+          </div>
+
+          {/* Elegant Text Animation */}
+          <div className="space-y-4 text-white">
+            <div className="overflow-hidden">
+              <div 
+                className="text-2xl font-light tracking-wide transform transition-all duration-1000 ease-out"
+                style={{
+                  transform: loadingProgress >= 1 ? 'translateY(0)' : 'translateY(20px)',
+                  opacity: loadingProgress >= 1 ? 1 : 0
+                }}
+              >
+                Words of affirmation
+              </div>
+            </div>
+
+            <div className="overflow-hidden">
+              <div 
+                className="text-xl text-blue-200 transform transition-all duration-1000 ease-out delay-500"
+                style={{
+                  transform: loadingProgress >= 2 ? 'translateY(0)' : 'translateY(20px)',
+                  opacity: loadingProgress >= 2 ? 1 : 0
+                }}
+              >
+                Are your love language.
+              </div>
+            </div>
+
+            <div className="overflow-hidden">
+              <div 
+                className="text-lg text-purple-200 transform transition-all duration-1000 ease-out delay-1000"
+                style={{
+                  transform: loadingProgress >= 3 ? 'translateY(0)' : 'translateY(20px)',
+                  opacity: loadingProgress >= 3 ? 1 : 0
+                }}
+              >
+                We've so far written{' '}
+                <span className="font-semibold text-yellow-300 animate-pulse">
+                  {totalWordCount.toLocaleString()}
+                </span>{' '}
+                words
+              </div>
+            </div>
+
+            <div className="overflow-hidden">
+              <div 
+                className="text-lg text-pink-200 transform transition-all duration-1000 ease-out delay-1500"
+                style={{
+                  transform: loadingProgress >= 4 ? 'translateY(0)' : 'translateY(20px)',
+                  opacity: loadingProgress >= 4 ? 1 : 0
+                }}
+              >
+                in 10 years.
+              </div>
+            </div>
+
+            <div className="overflow-hidden">
+              <div 
+                className="text-xl font-medium text-white transform transition-all duration-1000 ease-out delay-2000"
+                style={{
+                  transform: loadingProgress >= 5 ? 'translateY(0)' : 'translateY(20px)',
+                  opacity: loadingProgress >= 5 ? 1 : 0
+                }}
+              >
+                and counting...
+              </div>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mt-8 w-full max-w-md mx-auto">
+            <div className="bg-gray-800 rounded-full h-2 overflow-hidden">
+              <div 
+                className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 h-full rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${(loadingProgress / 5) * 100}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Loading your love story... {Math.round((loadingProgress / 5) * 100)}%
+            </p>
+          </div>
+
+          {/* Subtle Loading Indicator */}
+          <div className="mt-6">
+            <div className="flex justify-center space-x-1">
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
           </div>
         </div>
       </div>
@@ -1030,40 +1140,7 @@ export default function MobileMessageApp() {
         </div>
       )}
 
-      {/* Search Suggestions */}
-      {searchQuery && searchQuery.length > 0 && (
-        <div className="bg-gray-800 border-b border-gray-700 p-3">
-          <div className="flex items-center gap-4 text-xs">
-            <span className="text-gray-400">Quick searches:</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setSearchQuery(`/sender ${searchQuery}`)}
-                className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-gray-300"
-              >
-                Sender
-              </button>
-              <button
-                onClick={() => setSearchQuery(`/date ${searchQuery}`)}
-                className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-gray-300"
-              >
-                Date
-              </button>
-              <button
-                onClick={() => setSearchFilters(prev => ({ ...prev, hasLinks: true }))}
-                className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-gray-300"
-              >
-                With Links
-              </button>
-              <button
-                onClick={() => setSearchFilters(prev => ({ ...prev, hasEmojis: true }))}
-                className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-gray-300"
-              >
-                With Emojis
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Debug Panel */}
       {showDebug && debugInfo && (

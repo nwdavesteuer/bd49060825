@@ -320,7 +320,6 @@ export default function MobileMessageApp() {
         setLoading(true)
         setError(null)
         setLoadingProgress(0)
-        setTotalWordCount(0)
 
         console.log("=== COMPREHENSIVE 2016 MESSAGE HUNT ===")
         console.log("Fetching from table:", TABLE_NAME)

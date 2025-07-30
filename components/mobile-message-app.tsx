@@ -148,7 +148,7 @@ function MessageBubble({
   isFromMe: boolean
   position: "single" | "first" | "middle" | "last"
 }) {
-  const baseClasses = "max-w-[75%] px-4 py-2 text-sm leading-relaxed break-words"
+  const baseClasses = "max-w-[75%] px-4 py-2 text-sm leading-relaxed break-words cursor-pointer"
 
   const getCornerClasses = () => {
     if (isFromMe) {
@@ -184,8 +184,26 @@ function MessageBubble({
     : message.has_attachments === 1 || message.has_attachments === "1"
       ? "[Attachment]"
       : "[Message]"
+
+  // Use pre-analyzed emotion data
+  const hasEmotionData = message.primary_emotion && message.emotion_confidence
+  const emotionTooltip = hasEmotionData 
+    ? `Emotion: ${message.primary_emotion} (${Math.round(message.emotion_confidence * 100)}% confidence)`
+    : undefined
   
-  return <div className={`${baseClasses} ${colorClasses} ${getCornerClasses()}`}>{displayText}</div>
+  return (
+    <div 
+      className={`${baseClasses} ${colorClasses} ${getCornerClasses()} group relative`}
+      title={emotionTooltip}
+    >
+      {displayText}
+      
+      {/* Emotion indicator */}
+      {hasEmotionData && message.emotion_confidence > 0.3 && (
+        <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+      )}
+    </div>
+  )
 }
 
 function MessageGroup({ group }: { group: MessageGroup }) {
@@ -259,7 +277,30 @@ export default function MobileMessageApp() {
     dateRange: "",
     hasAttachments: false,
     hasLinks: false,
-    hasEmojis: false
+    hasEmojis: false,
+    emotions: {
+      love: false,
+      joy: false,
+      sweet: false,
+      support: false,
+      celebration: false,
+      deepTalks: false,
+      fights: false,
+      anxiety: false,
+      excitement: false,
+      sadness: false,
+      gratitude: false,
+      sexiness: false,
+      flirtation: false,
+      intimacy: false,
+      jealousy: false,
+      nostalgia: false,
+      surprise: false,
+      confusion: false,
+      relief: false,
+      longing: false,
+      playfulness: false
+    }
   })
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
   const [showSearchPanel, setShowSearchPanel] = useState(false)
@@ -282,6 +323,53 @@ export default function MobileMessageApp() {
     emojiCount: 274,
     emojiPerMessage: 0.7
   }
+
+  // Calculate emotion filter counts using pre-analyzed data
+  const emotionCounts = useMemo(() => {
+    const counts = {
+      love: 0,
+      joy: 0,
+      sweet: 0,
+      support: 0,
+      celebration: 0,
+      deepTalks: 0,
+      fights: 0,
+      anxiety: 0,
+      excitement: 0,
+      sadness: 0,
+      gratitude: 0,
+      sexiness: 0,
+      flirtation: 0,
+      intimacy: 0,
+      jealousy: 0,
+      nostalgia: 0,
+      surprise: 0,
+      confusion: 0,
+      relief: 0,
+      longing: 0,
+      playfulness: 0
+    }
+
+    messages.forEach((msg) => {
+      if (!msg.text) return
+      
+      // Use pre-analyzed emotion data if available
+      if (msg.primary_emotion && msg.primary_emotion in counts) {
+        counts[msg.primary_emotion as keyof typeof counts]++
+      }
+
+      // Also count secondary emotions
+      if (msg.secondary_emotions && Array.isArray(msg.secondary_emotions)) {
+        msg.secondary_emotions.forEach(emotion => {
+          if (emotion in counts) {
+            counts[emotion as keyof typeof counts]++
+          }
+        })
+      }
+    })
+
+    return counts
+  }, [messages])
 
   // Generate search suggestions based on message content
   const generateSearchSuggestions = useMemo(() => {
@@ -807,6 +895,36 @@ export default function MobileMessageApp() {
       )
     }
 
+    // Emotion filters using pre-analyzed data
+    const activeEmotions = Object.entries(searchFilters.emotions)
+      .filter(([_, isActive]) => isActive)
+      .map(([emotion]) => emotion)
+
+    if (activeEmotions.length > 0) {
+      filtered = filtered.filter((msg) => {
+        if (!msg.text) return false
+
+        return activeEmotions.some(emotion => {
+          // Check primary emotion
+          if (msg.primary_emotion === emotion) return true
+          
+          // Check secondary emotions
+          if (msg.secondary_emotions && Array.isArray(msg.secondary_emotions) && msg.secondary_emotions.includes(emotion)) return true
+          
+          // Special case for deep talks (context-based)
+          if (emotion === 'deepTalks') {
+            const messageDate = new Date(msg.readable_date)
+            const hour = messageDate.getHours()
+            const isLateNight = hour >= 22 || hour <= 6
+            const isLongMessage = msg.text.length > 100
+            return isLongMessage && isLateNight
+          }
+          
+          return false
+        })
+      })
+    }
+
     return filtered
   }, [messages, selectedYear, searchQuery, searchFilters])
 
@@ -1128,6 +1246,323 @@ export default function MobileMessageApp() {
                     </button>
                   </div>
                 </div>
+
+                <div>
+                  <label className="text-blue-300 text-sm">Emotion Filters</label>
+                  <div className="grid grid-cols-3 gap-2 mt-1">
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, love: !prev.emotions.love }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.love 
+                          ? "bg-red-500 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      ❤️ Love ({emotionCounts.love})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, joy: !prev.emotions.joy }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.joy 
+                          ? "bg-yellow-500 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      😂 Joy ({emotionCounts.joy})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, sweet: !prev.emotions.sweet }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.sweet 
+                          ? "bg-pink-500 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      🥰 Sweet ({emotionCounts.sweet})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, support: !prev.emotions.support }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.support 
+                          ? "bg-blue-500 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      😢 Support ({emotionCounts.support})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, celebration: !prev.emotions.celebration }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.celebration 
+                          ? "bg-purple-500 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      🎉 Celebration ({emotionCounts.celebration})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, deepTalks: !prev.emotions.deepTalks }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.deepTalks 
+                          ? "bg-indigo-500 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      💭 Deep Talks ({emotionCounts.deepTalks})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, fights: !prev.emotions.fights }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.fights 
+                          ? "bg-red-600 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      😠 Fights ({emotionCounts.fights})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, anxiety: !prev.emotions.anxiety }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.anxiety 
+                          ? "bg-orange-600 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      😰 Anxiety ({emotionCounts.anxiety})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, excitement: !prev.emotions.excitement }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.excitement 
+                          ? "bg-yellow-600 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      🎉 Excitement ({emotionCounts.excitement})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, sadness: !prev.emotions.sadness }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.sadness 
+                          ? "bg-blue-600 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      😢 Sadness ({emotionCounts.sadness})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, gratitude: !prev.emotions.gratitude }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.gratitude 
+                          ? "bg-green-600 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      🙏 Gratitude ({emotionCounts.gratitude})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, sexiness: !prev.emotions.sexiness }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.sexiness 
+                          ? "bg-pink-600 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      🔥 Sexiness ({emotionCounts.sexiness})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, flirtation: !prev.emotions.flirtation }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.flirtation 
+                          ? "bg-purple-600 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      😉 Flirtation ({emotionCounts.flirtation})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, intimacy: !prev.emotions.intimacy }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.intimacy 
+                          ? "bg-red-600 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      💕 Intimacy ({emotionCounts.intimacy})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, jealousy: !prev.emotions.jealousy }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.jealousy 
+                          ? "bg-yellow-600 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      😤 Jealousy ({emotionCounts.jealousy})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, nostalgia: !prev.emotions.nostalgia }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.nostalgia 
+                          ? "bg-teal-600 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      😌 Nostalgia ({emotionCounts.nostalgia})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, surprise: !prev.emotions.surprise }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.surprise 
+                          ? "bg-orange-600 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      😲 Surprise ({emotionCounts.surprise})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, confusion: !prev.emotions.confusion }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.confusion 
+                          ? "bg-gray-500 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      🤔 Confusion ({emotionCounts.confusion})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, relief: !prev.emotions.relief }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.relief 
+                          ? "bg-green-500 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      😌 Relief ({emotionCounts.relief})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, longing: !prev.emotions.longing }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.longing 
+                          ? "bg-purple-500 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      💔 Longing ({emotionCounts.longing})
+                    </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, playfulness: !prev.emotions.playfulness }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.playfulness 
+                          ? "bg-cyan-600 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      😄 Playfulness ({emotionCounts.playfulness})
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-blue-700">
+                  <button
+                    onClick={() => setSearchFilters({
+                      sender: "",
+                      dateRange: "",
+                      hasAttachments: false,
+                      hasLinks: false,
+                      hasEmojis: false,
+                      emotions: {
+                        love: false,
+                        joy: false,
+                        sweet: false,
+                        support: false,
+                        celebration: false,
+                        deepTalks: false,
+                        fights: false,
+                        anxiety: false,
+                        excitement: false,
+                        sadness: false,
+                        gratitude: false,
+                        sexiness: false,
+                        flirtation: false,
+                        intimacy: false,
+                        jealousy: false,
+                        nostalgia: false,
+                        surprise: false,
+                        confusion: false,
+                        relief: false,
+                        longing: false,
+                        playfulness: false
+                      }
+                    })}
+                    className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs text-gray-300 transition-colors"
+                  >
+                    🗑️ Clear All Filters
+                  </button>
+                </div>
               </div>
             </div>
             
@@ -1374,6 +1809,39 @@ export default function MobileMessageApp() {
                   {searchFilters.hasAttachments && " 📎"}
                   {searchFilters.hasLinks && " 🔗"}
                   {searchFilters.hasEmojis && " 😊"}
+                  {Object.values(searchFilters.emotions).some(Boolean) && (
+                    <span className="ml-1">
+                      {Object.entries(searchFilters.emotions)
+                        .filter(([_, isActive]) => isActive)
+                        .map(([emotion]) => {
+                          const emojis = { 
+                            love: '❤️', 
+                            joy: '😂', 
+                            sweet: '🥰', 
+                            support: '😢', 
+                            celebration: '🎉', 
+                            deepTalks: '💭', 
+                            fights: '😠',
+                            anxiety: '😰',
+                            excitement: '🎉',
+                            sadness: '😢',
+                            gratitude: '🙏',
+                            sexiness: '🔥',
+                            flirtation: '😉',
+                            intimacy: '💕',
+                            jealousy: '😤',
+                            nostalgia: '😌',
+                            surprise: '😲',
+                            confusion: '🤔',
+                            relief: '😌',
+                            longing: '💔',
+                            playfulness: '😄'
+                          }
+                          return emojis[emotion as keyof typeof emojis]
+                        })
+                        .join(' ')}
+                    </span>
+                  )}
                 </p>
               </div>
               <Calendar className="h-5 w-5 text-gray-400" />

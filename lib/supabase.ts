@@ -35,6 +35,14 @@ export interface Message {
   updated_at?: string
   guid?: string
   attachment_count?: number
+  // Emotion analysis fields
+  primary_emotion?: string
+  emotion_confidence?: number
+  secondary_emotions?: string[]
+  emotion_intensity?: number
+  emotion_context?: string
+  emotion_triggers?: string[]
+  relationship_impact?: string
 }
 
 export const getMessagesTable = () => supabase.from(TABLE_NAME)

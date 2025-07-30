@@ -381,7 +381,11 @@ export default function MobileMessageApp() {
         } else if (msg.primary_emotion in counts) {
           counts[msg.primary_emotion as keyof typeof counts]++
           messagesWithEmotions++
+        } else {
+          console.log(`⚠️ Unknown emotion: ${msg.primary_emotion}`)
         }
+      } else {
+        console.log(`⚠️ No primary_emotion for message ${msg.message_id}`)
       }
 
       // Also count secondary emotions
@@ -400,13 +404,26 @@ export default function MobileMessageApp() {
     console.log(`   Messages with emotions: ${messagesWithEmotions}`)
     console.log(`   Neutral messages: ${neutralCount}`)
     console.log(`   Messages array length: ${messages.length}`)
-    console.log(`   First few messages:`, messages.slice(0, 3).map(msg => ({
-      id: msg.message_id,
-      text: msg.text?.substring(0, 30),
-      primary_emotion: msg.primary_emotion,
-      emotion_confidence: msg.emotion_confidence
-    })))
+    
+    // Show sample of actual emotion data
+    const sampleEmotional = messages.find(msg => msg.primary_emotion && msg.primary_emotion !== 'neutral')
+    if (sampleEmotional) {
+      console.log(`   Sample emotional message:`, {
+        id: sampleEmotional.message_id,
+        text: sampleEmotional.text?.substring(0, 50),
+        primary_emotion: sampleEmotional.primary_emotion,
+        emotion_confidence: sampleEmotional.emotion_confidence
+      })
+    }
+    
     console.log(`   Emotion counts:`, counts)
+    console.log(`   Counts object keys:`, Object.keys(counts))
+    console.log(`   Sample counts:`, {
+      love: counts.love,
+      joy: counts.joy,
+      relief: counts.relief,
+      neutral: neutralCount
+    })
 
     console.log('🎭 Final emotion counts:', counts)
     return counts
@@ -610,7 +627,7 @@ export default function MobileMessageApp() {
           console.log(`Fetching page ${page + 1} (${pageSize} records)...`)
           const { data: pageData, error: fetchError } = await supabase
             .from(TABLE_NAME)
-            .select(`*, primary_emotion, emotion_confidence, secondary_emotions, emotion_intensity, emotion_context, emotion_triggers, relationship_impact`)
+            .select('message_id, text, readable_date, is_from_me, sender, recipient, has_attachments, attachments_info, emojis, links, service, account, contact_id, date, date_read, guid, primary_emotion, emotion_confidence, secondary_emotions, emotion_intensity, emotion_context, emotion_triggers, relationship_impact')
             .order("readable_date", { ascending: true })
             .range(page * pageSize, (page + 1) * pageSize - 1)
           
@@ -1334,9 +1351,6 @@ export default function MobileMessageApp() {
 
                 <div>
                   <label className="text-blue-300 text-sm">Emotion Filters</label>
-                  <div className="text-xs text-gray-400 mb-2">
-                    Debug: {JSON.stringify(emotionCounts)}
-                  </div>
                   <div className="grid grid-cols-3 gap-2 mt-1">
                     <button
                       onClick={() => setSearchFilters(prev => ({ 

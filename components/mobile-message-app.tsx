@@ -199,8 +199,15 @@ function MessageBubble({
       {displayText}
       
       {/* Emotion indicator */}
-      {hasEmotionData && message.emotion_confidence > 0.3 && (
+      {hasEmotionData && message.emotion_confidence > 0.1 && (
         <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+      )}
+      
+      {/* Emotion badge for high confidence emotions */}
+      {hasEmotionData && message.emotion_confidence > 0.2 && message.primary_emotion !== 'neutral' && (
+        <div className="absolute -bottom-1 -right-1 px-1.5 py-0.5 text-xs rounded-full bg-purple-600 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          {message.primary_emotion}
+        </div>
       )}
     </div>
   )
@@ -1028,7 +1035,7 @@ export default function MobileMessageApp() {
         if (!msg.text) return false
 
         return activeEmotions.some(emotion => {
-          // Check primary emotion
+          // Check primary emotion (include low confidence matches)
           if (msg.primary_emotion === emotion) return true
           
           // Check secondary emotions

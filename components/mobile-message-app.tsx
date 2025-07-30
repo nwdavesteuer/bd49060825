@@ -610,7 +610,7 @@ export default function MobileMessageApp() {
           console.log(`Fetching page ${page + 1} (${pageSize} records)...`)
           const { data: pageData, error: fetchError } = await supabase
             .from(TABLE_NAME)
-            .select("*")
+            .select(`*, primary_emotion, emotion_confidence, secondary_emotions, emotion_intensity, emotion_context, emotion_triggers, relationship_impact`)
             .order("readable_date", { ascending: true })
             .range(page * pageSize, (page + 1) * pageSize - 1)
           
@@ -620,6 +620,17 @@ export default function MobileMessageApp() {
           }
           
           if (pageData && pageData.length > 0) {
+            // Debug the first record to see what fields are actually returned
+            if (page === 0 && pageData.length > 0) {
+              console.log('🔍 First page data sample:', {
+                message_id: pageData[0].message_id,
+                text: pageData[0].text?.substring(0, 30),
+                has_primary_emotion: 'primary_emotion' in pageData[0],
+                primary_emotion: pageData[0].primary_emotion,
+                all_keys: Object.keys(pageData[0]).filter(key => key.includes('emotion'))
+              })
+            }
+            
             allData = allData.concat(pageData)
             console.log(`✅ Page ${page + 1} loaded: ${pageData.length} records`)
             page++

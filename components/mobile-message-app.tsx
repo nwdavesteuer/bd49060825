@@ -357,9 +357,22 @@ export default function MobileMessageApp() {
     let messagesWithEmotions = 0
     let neutralCount = 0
 
-    messages.forEach((msg) => {
+    messages.forEach((msg, index) => {
       if (!msg.text) return
       totalMessages++
+      
+      // Debug first few messages
+      if (index < 5) {
+        console.log(`🎭 Message ${index + 1}:`, {
+          id: msg.message_id,
+          text: msg.text?.substring(0, 30),
+          primary_emotion: msg.primary_emotion,
+          emotion_confidence: msg.emotion_confidence,
+          has_primary: !!msg.primary_emotion,
+          is_neutral: msg.primary_emotion === 'neutral',
+          in_counts: msg.primary_emotion in counts
+        })
+      }
       
       // Use pre-analyzed emotion data if available
       if (msg.primary_emotion) {

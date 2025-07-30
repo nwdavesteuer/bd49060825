@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MessageSquare, Heart, Calendar, Database, Smartphone, BarChart3, Settings } from "lucide-react"
+import { MessageSquare, Heart, Calendar, Database, Smartphone, BarChart3, Settings, Brain } from "lucide-react"
 
 export default function HomePage() {
   return (
@@ -69,6 +69,24 @@ export default function HomePage() {
                 </p>
                 <Link href="/visual-heatmap">
                   <Button className="w-full">View Charts</Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Emotions Explorer */}
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-purple-600" />
+                  Emotions Explorer
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600 mb-4">
+                  Test and debug emotion tagging functionality. Explore emotional patterns in your conversations.
+                </p>
+                <Link href="/emotions-explorer">
+                  <Button className="w-full">Explore Emotions</Button>
                 </Link>
               </CardContent>
             </Card>

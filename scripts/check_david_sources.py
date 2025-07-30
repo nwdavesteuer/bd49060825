@@ -161,4 +161,4 @@ def check_david_sources():
             print("📱 This appears to be a shared or family phone")
 
 if __name__ == "__main__":
-    check_david_sources() 
+    check_david_sources()

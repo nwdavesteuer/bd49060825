@@ -96,4 +96,4 @@ def main():
         print("- Email addresses are stored as-is")
 
 if __name__ == "__main__":
-    main() 
+    main()

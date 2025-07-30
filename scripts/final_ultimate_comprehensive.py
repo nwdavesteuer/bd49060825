@@ -195,4 +195,4 @@ def main():
     print(f"2017-2019 breakdown: {david_2017_2019} from David, {nitzan_2017_2019} from Nitzan")
 
 if __name__ == "__main__":
-    main() 
+    main()

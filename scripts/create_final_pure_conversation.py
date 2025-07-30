@@ -241,4 +241,4 @@ def create_final_pure_conversation():
     print(f"✅ All messages are chronological and direct David-Nitzan conversations only!")
 
 if __name__ == "__main__":
-    create_final_pure_conversation() 
+    create_final_pure_conversation()

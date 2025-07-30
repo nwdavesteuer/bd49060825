@@ -207,4 +207,4 @@ def main():
             print(f"  {year}: {len(year_messages)} total ({david_count} from David, {nitzan_count} from Nitzan)")
 
 if __name__ == "__main__":
-    main() 
+    main()

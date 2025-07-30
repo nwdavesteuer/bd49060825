@@ -284,4 +284,4 @@ These scripts can be run to reproduce the extraction process or modify the datas
     print(f"✅ Project organized and cleaned!")
 
 if __name__ == "__main__":
-    cleanup_project() 
+    cleanup_project()

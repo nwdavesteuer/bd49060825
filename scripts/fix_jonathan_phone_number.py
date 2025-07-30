@@ -263,4 +263,4 @@ def fix_jonathan_phone_number():
     print(f"✅ Now truly only David-Nitzan conversations!")
 
 if __name__ == "__main__":
-    fix_jonathan_phone_number() 
+    fix_jonathan_phone_number()

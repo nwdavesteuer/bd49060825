@@ -36,14 +36,14 @@ You're getting "authorization denied" because Terminal doesn't have permission t
 - Wait 10-15 seconds
 
 ### Step 3: Test Permissions
-```bash
+\`\`\`bash
 python3 permission_helper.py
-```
+\`\`\`
 
 You should see: ✅ Read permission granted to Messages database
 
 ### Step 4: Find Nitzan's Contact Format
-```bash
+\`\`\`bash
 # Search for Nitzan by name
 python3 contact_finder.py nitzan
 
@@ -55,25 +55,25 @@ python3 contact_finder.py pelman
 
 # Or list all contacts to find Nitzan
 python3 contact_finder.py
-```
+\`\`\`
 
 ### Step 5: Extract Messages
 Once you find the exact contact format, use it:
-```bash
+\`\`\`bash
 python3 enhanced_imessage_extractor.py --contact "EXACT_CONTACT_ID" --output nitzan_messages.json
-```
+\`\`\`
 
 ## 🔍 Alternative Contact Search Methods
 
 If the name search doesn't work, try these phone number formats:
 
-```bash
+\`\`\`bash
 # Try different phone number formats
 python3 enhanced_imessage_extractor.py --contact "9172390518"
 python3 enhanced_imessage_extractor.py --contact "+19172390518"
 python3 enhanced_imessage_extractor.py --contact "1-917-239-0518"
 python3 enhanced_imessage_extractor.py --contact "19172390518"
-```
+\`\`\`
 
 ## 📱 Manual Contact Discovery
 
@@ -112,22 +112,22 @@ Consider established iMessage backup tools that handle permissions better:
 ## 🎯 Expected Results
 
 Once permissions are working, you should see:
-```
+\`\`\`
 ✅ Messages directory found
 ✅ Messages database found  
 ✅ Read permission granted to Messages database
-```
+\`\`\`
 
 Then the contact finder will show you exactly how Nitzan's contact is stored:
-```
+\`\`\`
 1. +19172390518 | US | iMessage | 1500 messages
-```
+\`\`\`
 
 ## 📞 Quick Test Commands
 
 After granting permissions, run these in order:
 
-```bash
+\`\`\`bash
 # 1. Test permissions
 python3 permission_helper.py
 
@@ -136,7 +136,7 @@ python3 contact_finder.py nitzan
 
 # 3. Extract messages (using exact contact ID from step 2)
 python3 enhanced_imessage_extractor.py --contact "EXACT_ID" --output nitzan_messages.json
-```
+\`\`\`
 
 ## 💡 Pro Tips
 
@@ -148,4 +148,4 @@ python3 enhanced_imessage_extractor.py --contact "EXACT_ID" --output nitzan_mess
 
 ---
 
-**Once you've granted permissions, let me know and we can proceed with the extraction! 🚀** 
+**Once you've granted permissions, let me know and we can proceed with the extraction! 🚀**

@@ -195,4 +195,4 @@ def extract_all_attachments():
     return all_attachments, output_dir
 
 if __name__ == "__main__":
-    extract_all_attachments() 
+    extract_all_attachments()

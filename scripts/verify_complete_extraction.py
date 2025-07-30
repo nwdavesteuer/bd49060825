@@ -306,4 +306,4 @@ def verify_complete_extraction():
         print(f"✅ All sources have been checked")
 
 if __name__ == "__main__":
-    verify_complete_extraction() 
+    verify_complete_extraction()

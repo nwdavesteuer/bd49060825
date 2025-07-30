@@ -1,4 +1,3 @@
-
 -- Create nitzan_messages table for Supabase
 CREATE TABLE IF NOT EXISTS nitzan_messages (
     id BIGINT PRIMARY KEY,

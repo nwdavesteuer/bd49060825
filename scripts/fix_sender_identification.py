@@ -255,4 +255,4 @@ def fix_sender_identification():
     print(f"  - {supabase_json_filename}")
 
 if __name__ == "__main__":
-    fix_sender_identification() 
+    fix_sender_identification()

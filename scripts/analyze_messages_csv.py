@@ -145,4 +145,4 @@ def compare_with_extracted_data():
 
 if __name__ == "__main__":
     analyze_csv_messages()
-    compare_with_extracted_data() 
+    compare_with_extracted_data()

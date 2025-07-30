@@ -1,4 +1,3 @@
-
 -- Create nitzan_messages table for Supabase
 -- Generated from comprehensive extraction on 2025-07-24 15:25:25
 -- Total records: 8439

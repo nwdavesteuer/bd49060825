@@ -124,4 +124,4 @@ def check_actual_dates():
         print(f"{i}. [{sender}] {date}: {text}...")
 
 if __name__ == "__main__":
-    check_actual_dates() 
+    check_actual_dates()

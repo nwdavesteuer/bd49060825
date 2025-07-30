@@ -36,14 +36,14 @@ This repository contains tools to:
 - Messages app with conversations
 
 ### Installation
-```bash
+\`\`\`bash
 # Clone the repository
 git clone <your-repo-url>
 cd imessage
 
 # Install dependencies
 pip3 install -r requirements.txt
-```
+\`\`\`
 
 ### Grant Permissions
 1. Open **System Settings** > **Privacy & Security** > **Full Disk Access**
@@ -52,35 +52,35 @@ pip3 install -r requirements.txt
 4. Test permissions: `python3 permission_helper.py`
 
 ### Extract Messages
-```bash
+\`\`\`bash
 # Find contacts
 python3 contact_finder.py "contact_name"
 
 # Extract messages
 python3 enhanced_imessage_extractor.py --contact "contact_id" --output messages.json
-```
+\`\`\`
 
 ## 🔧 Usage Examples
 
 ### Find a Contact
-```bash
+\`\`\`bash
 python3 contact_finder.py "john"
-```
+\`\`\`
 
 ### Extract All Messages
-```bash
+\`\`\`bash
 python3 enhanced_imessage_extractor.py --contact "+1234567890" --output all_messages.json
-```
+\`\`\`
 
 ### Search Extracted Messages
-```bash
+\`\`\`bash
 python3 message_query_tool.py messages.db --search "love"
-```
+\`\`\`
 
 ### Get Conversation Statistics
-```bash
+\`\`\`bash
 python3 message_query_tool.py messages.db --stats
-```
+\`\`\`
 
 ## 📊 Output Format
 
@@ -90,7 +90,7 @@ The enhanced extractor creates:
 - **Backup**: Automatic backup of Messages database
 
 ### JSON Structure
-```json
+\`\`\`json
 {
   "metadata": {
     "contact_identifier": "+1234567890",
@@ -113,7 +113,7 @@ The enhanced extractor creates:
     }
   ]
 }
-```
+\`\`\`
 
 ## 🎨 Gift Creation
 
@@ -171,4 +171,4 @@ For detailed troubleshooting, see:
 
 ---
 
-**Happy gift-making! 🎁💕** 
+**Happy gift-making! 🎁💕**

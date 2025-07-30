@@ -257,4 +257,4 @@ def main():
         print("❌ No messages found in any database")
 
 if __name__ == "__main__":
-    main() 
+    main()

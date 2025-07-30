@@ -490,4 +490,4 @@ def main():
     print(f"\n🎯 Ready for Supabase import!")
 
 if __name__ == "__main__":
-    main() 
+    main()

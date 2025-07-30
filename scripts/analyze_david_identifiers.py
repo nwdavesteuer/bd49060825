@@ -189,4 +189,4 @@ def analyze_david_identifiers():
         print("and potentially included in our dataset.")
 
 if __name__ == "__main__":
-    analyze_david_identifiers() 
+    analyze_david_identifiers()

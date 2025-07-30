@@ -177,4 +177,4 @@ def search_imac_timemachine():
         return [], None
 
 if __name__ == "__main__":
-    search_imac_timemachine() 
+    search_imac_timemachine()

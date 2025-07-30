@@ -204,4 +204,4 @@ def check_timemachine_timeline():
         print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
-    check_timemachine_timeline() 
+    check_timemachine_timeline()

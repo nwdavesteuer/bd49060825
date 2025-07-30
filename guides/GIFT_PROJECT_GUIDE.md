@@ -18,15 +18,15 @@ This guide will help you extract all your messages with Nitzan (phone: 1 (917) 2
 
 ### Step 1: Install Dependencies
 
-```bash
+\`\`\`bash
 pip3 install pandas Pillow
-```
+\`\`\`
 
 ### Step 2: Extract All Messages
 
-```bash
+\`\`\`bash
 python3 enhanced_imessage_extractor.py --contact "1 (917) 239-0518" --output nitzan_messages.json
-```
+\`\`\`
 
 This will create:
 - `nitzan_messages.json` - Complete message history with metadata
@@ -34,7 +34,7 @@ This will create:
 
 ### Step 3: Explore Your Data
 
-```bash
+\`\`\`bash
 # Get conversation statistics
 python3 message_query_tool.py nitzan_messages.db --stats
 
@@ -46,7 +46,7 @@ python3 message_query_tool.py nitzan_messages.db --attachments
 
 # Get most active days
 python3 message_query_tool.py nitzan_messages.db --active-days 20
-```
+\`\`\`
 
 ## 🎨 Creative Gift Ideas
 
@@ -78,12 +78,12 @@ python3 message_query_tool.py nitzan_messages.db --active-days 20
 ## 🔍 Advanced Query Examples
 
 ### Find First Messages
-```bash
+\`\`\`bash
 python3 message_query_tool.py nitzan_messages.db --date-range "2020-01-01" "2020-12-31" --export first_year.json
-```
+\`\`\`
 
 ### Search for Specific Topics
-```bash
+\`\`\`bash
 # Find messages about dates/meetings
 python3 message_query_tool.py nitzan_messages.db --search "meet" --export meetings.json
 
@@ -92,16 +92,16 @@ python3 message_query_tool.py nitzan_messages.db --search "love OR heart OR miss
 
 # Find funny moments
 python3 message_query_tool.py nitzan_messages.db --search "haha OR lol OR 😂" --export funny.json
-```
+\`\`\`
 
 ### Get Conversation Highlights
-```bash
+\`\`\`bash
 # Longest messages (most meaningful)
 python3 message_query_tool.py nitzan_messages.db --longest 50 --export meaningful.json
 
 # Most active days (special occasions)
 python3 message_query_tool.py nitzan_messages.db --active-days 30 --export active_days.json
-```
+\`\`\`
 
 ## 📊 Data Structure
 
@@ -130,7 +130,7 @@ The extracted data includes:
 ## 🛠️ Technical Tools
 
 ### JSON Structure
-```json
+\`\`\`json
 {
   "metadata": {
     "contact_identifier": "1 (917) 239-0518",
@@ -160,7 +160,7 @@ The extracted data includes:
     }
   ]
 }
-```
+\`\`\`
 
 ### SQLite Database Schema
 - `messages` table: All message data
@@ -203,4 +203,4 @@ If you encounter any issues, check the main README.md for detailed troubleshooti
 
 ---
 
-**Happy gift-making! 🎁💕** 
+**Happy gift-making! 🎁💕**

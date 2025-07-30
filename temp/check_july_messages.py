@@ -62,4 +62,4 @@ def check_july_messages():
             print()
 
 if __name__ == "__main__":
-    check_july_messages() 
+    check_july_messages()

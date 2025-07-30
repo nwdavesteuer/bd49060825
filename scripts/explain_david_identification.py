@@ -132,4 +132,4 @@ def explain_david_identification():
     print("6. Exclude conversations with display names (group chats)")
 
 if __name__ == "__main__":
-    explain_david_identification() 
+    explain_david_identification()

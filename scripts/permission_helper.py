@@ -111,4 +111,4 @@ def main():
         print("python3 permission_helper.py")
 
 if __name__ == "__main__":
-    main() 
+    main()

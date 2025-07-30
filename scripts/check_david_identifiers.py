@@ -170,4 +170,4 @@ def check_david_identifiers():
         print("   Or they might be stored in a different location")
 
 if __name__ == "__main__":
-    check_david_identifiers() 
+    check_david_identifiers()

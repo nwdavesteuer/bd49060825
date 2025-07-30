@@ -239,4 +239,4 @@ def filter_correct_david_nitzan():
     print(f"  - {supabase_json_filename}")
 
 if __name__ == "__main__":
-    filter_correct_david_nitzan() 
+    filter_correct_david_nitzan()

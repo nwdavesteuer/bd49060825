@@ -107,4 +107,4 @@ def fix_supabase_structure():
     return output_file
 
 if __name__ == "__main__":
-    fix_supabase_structure() 
+    fix_supabase_structure()

@@ -193,4 +193,4 @@ def search_timemachine_attachments():
         return [], None
 
 if __name__ == "__main__":
-    search_timemachine_attachments() 
+    search_timemachine_attachments()

@@ -350,12 +350,22 @@ export default function MobileMessageApp() {
       playfulness: 0
     }
 
+    let totalMessages = 0
+    let messagesWithEmotions = 0
+    let neutralCount = 0
+
     messages.forEach((msg) => {
       if (!msg.text) return
+      totalMessages++
       
       // Use pre-analyzed emotion data if available
-      if (msg.primary_emotion && msg.primary_emotion in counts) {
-        counts[msg.primary_emotion as keyof typeof counts]++
+      if (msg.primary_emotion) {
+        if (msg.primary_emotion === 'neutral') {
+          neutralCount++
+        } else if (msg.primary_emotion in counts) {
+          counts[msg.primary_emotion as keyof typeof counts]++
+          messagesWithEmotions++
+        }
       }
 
       // Also count secondary emotions
@@ -367,6 +377,13 @@ export default function MobileMessageApp() {
         })
       }
     })
+
+    // Debug logging
+    console.log('🎭 Emotion Analysis Debug:')
+    console.log(`   Total messages: ${totalMessages}`)
+    console.log(`   Messages with emotions: ${messagesWithEmotions}`)
+    console.log(`   Neutral messages: ${neutralCount}`)
+    console.log(`   Emotion counts:`, counts)
 
     return counts
   }, [messages])
@@ -606,6 +623,25 @@ export default function MobileMessageApp() {
         console.log("- Expected count:", exactCount)
         console.log("- Actual received:", data?.length)
         console.log("- Match:", exactCount === data?.length ? "✅ YES" : "❌ NO")
+        
+        // Debug emotion data
+        if (data && data.length > 0) {
+          const sampleWithEmotion = data.find(msg => msg.primary_emotion && msg.primary_emotion !== 'neutral')
+          if (sampleWithEmotion) {
+            console.log("🎭 Sample message with emotion:")
+            console.log("   Text:", sampleWithEmotion.text?.substring(0, 50))
+            console.log("   Primary emotion:", sampleWithEmotion.primary_emotion)
+            console.log("   Confidence:", sampleWithEmotion.emotion_confidence)
+          }
+          
+          const emotionStats = {}
+          data.forEach(msg => {
+            if (msg.primary_emotion) {
+              emotionStats[msg.primary_emotion] = (emotionStats[msg.primary_emotion] || 0) + 1
+            }
+          })
+          console.log("📊 Emotion distribution in fetched data:", emotionStats)
+        }
 
         if (!data || data.length === 0) {
           setError("No messages found in the database")

@@ -564,6 +564,23 @@ export default function MobileMessageApp() {
         console.log("- Total processed messages:", normalizedMessages.length)
         console.log("- Final year distribution:", finalYearCounts)
         console.log("- 2016 in final data:", finalYearCounts[2016] || 0)
+        
+        // Debug: Check for 2022-2025 data
+        console.log("🔍 CHECKING FOR 2022-2025 DATA:")
+        for (let year = 2022; year <= 2025; year++) {
+          const count = finalYearCounts[year] || 0
+          console.log(`- ${year}: ${count} messages`)
+        }
+        
+        // Debug: Check date range of processed messages
+        if (normalizedMessages.length > 0) {
+          const dates = normalizedMessages.map(msg => new Date(msg.date))
+          const earliest = new Date(Math.min(...dates.map(d => d.getTime())))
+          const latest = new Date(Math.max(...dates.map(d => d.getTime())))
+          console.log("📅 PROCESSED MESSAGE DATE RANGE:")
+          console.log("- Earliest:", earliest.toISOString().substring(0, 10))
+          console.log("- Latest:", latest.toISOString().substring(0, 10))
+        }
 
         // Set debug info
         setDebugInfo({
@@ -591,7 +608,7 @@ export default function MobileMessageApp() {
 
         const years = Object.keys(finalYearCounts)
           .map((year) => Number.parseInt(year))
-          .sort((a, b) => b - a)
+          .sort((a, b) => a - b) // Changed to ascending order: 2015 first, 2025 last
           .map((year) => ({
             year,
             count: finalYearCounts[year],
@@ -666,11 +683,9 @@ export default function MobileMessageApp() {
   // Virtual scrolling optimization: Limit displayed items for large datasets
   const displayLimit = 1000 // Show max 1000 messages at once for performance
   const limitedGroupedByDay = useMemo(() => {
-    if (groupedByDay.length <= displayLimit) return groupedByDay
-    
-    // For large datasets, show most recent days first
-    return groupedByDay.slice(-displayLimit)
-  }, [groupedByDay, displayLimit])
+    // Temporarily show all data to debug missing years
+    return groupedByDay
+  }, [groupedByDay])
 
   const selectYear = (year: number | null) => {
     setSelectedYear(year)
@@ -854,19 +869,6 @@ export default function MobileMessageApp() {
                 <div>
                   <h2 className="font-semibold text-gray-100">Message Timeline</h2>
                   <p className="text-xs text-gray-400">{filteredMessages.length.toLocaleString()} messages</p>
-                  <p className="text-xs text-green-400">Table: {TABLE_NAME}</p>
-                  {debugInfo && (
-                    <>
-                      <p
-                        className={`text-xs ${debugInfo.totalRawMessages < 1000 ? "text-red-400" : "text-yellow-400"}`}
-                      >
-                        Raw: {debugInfo.totalRawMessages.toLocaleString()}
-                      </p>
-                      <p className={`text-xs ${debugInfo.year2016Analysis.found ? "text-green-400" : "text-red-400"}`}>
-                        2016: {debugInfo.year2016Analysis.found ? debugInfo.year2016Analysis.count : "NOT FOUND"}
-                      </p>
-                    </>
-                  )}
                 </div>
               </div>
             </div>
@@ -991,33 +993,8 @@ export default function MobileMessageApp() {
                 </h1>
                 <p className="text-xs text-gray-400">
                   {filteredMessages.length.toLocaleString()} messages
-                  {searchQuery && ` matching "${searchQuery}"`} • {TABLE_NAME}
+                  {searchQuery && ` matching "${searchQuery}"`}
                 </p>
-                {messages.length < 1000 && (
-                  <p className="text-xs text-red-400 font-medium">
-                    ⚠️ Expected 44,000+ messages but only loaded {messages.length}
-                  </p>
-                )}
-                {/* Performance indicators */}
-                <div className="flex gap-2 mt-1">
-                  <span className="text-xs text-blue-400">
-                    ⚡ Optimized for {displayLimit} items
-                  </span>
-                  {groupedByDay.length > displayLimit && (
-                    <span className="text-xs text-yellow-400">
-                      📊 Large dataset detected
-                    </span>
-                  )}
-                </div>
-                {debugInfo && (
-                  <p
-                    className={`text-xs font-medium ${debugInfo.year2016Analysis.found ? "text-green-400" : "text-red-400"}`}
-                  >
-                    {debugInfo.year2016Analysis.found
-                      ? `✅ Found ${debugInfo.year2016Analysis.count} messages from 2016`
-                      : "❌ No 2016 messages found in database"}
-                  </p>
-                )}
               </div>
               <Calendar className="h-5 w-5 text-gray-400" />
             </div>
@@ -1030,30 +1007,9 @@ export default function MobileMessageApp() {
                 <p className="text-gray-400">
                   {searchQuery ? "No messages found matching your search" : "No messages found"}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Table: {TABLE_NAME}</p>
-                {debugInfo && (
-                  <div className="mt-4 text-xs">
-                    <p className="text-yellow-400">Raw database had {debugInfo.totalRawMessages} messages</p>
-                    <p className={`${debugInfo.year2016Analysis.found ? "text-green-400" : "text-red-400"}`}>
-                      2016 data: {debugInfo.year2016Analysis.found ? "Found" : "Not found"}
-                    </p>
-                  </div>
-                )}
               </div>
             ) : (
               <>
-                {/* Performance indicator for large datasets */}
-                {groupedByDay.length > displayLimit && (
-                  <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
-                    <p className="text-yellow-300 text-sm">
-                      ⚡ Showing {limitedGroupedByDay.length} of {groupedByDay.length} days for performance
-                    </p>
-                    <p className="text-yellow-400 text-xs mt-1">
-                      Use search or year filter to see specific data
-                    </p>
-                  </div>
-                )}
-                
                 {limitedGroupedByDay.map(([dayString, dayGroups]) => (
                   <div key={dayString}>
                     <DayHeader date={new Date(dayString)} />

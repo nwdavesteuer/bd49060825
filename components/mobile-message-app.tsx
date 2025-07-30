@@ -383,6 +383,7 @@ export default function MobileMessageApp() {
         let allData: any[] = []
         let hasMore = true
         let page = 0
+        let totalPages = 0
         const pageSize = 1000
         
         while (hasMore) {
@@ -402,8 +403,10 @@ export default function MobileMessageApp() {
             allData = allData.concat(pageData)
             console.log(`✅ Page ${page + 1} loaded: ${pageData.length} records`)
             page++
+            totalPages = page
           } else {
             hasMore = false
+            totalPages = page
           }
           
           // Safety check to prevent infinite loops
@@ -418,10 +421,7 @@ export default function MobileMessageApp() {
         const queryTime = Date.now() - startTime
         console.log(`✅ Main query completed in ${queryTime}ms`)
 
-        if (fetchError) {
-          console.error("❌ Main fetch error:", fetchError)
-          throw fetchError
-        }
+        // Note: fetchError is handled inside the while loop above
 
         console.log("✅ RAW DATA RECEIVED:")
         console.log("- Expected count:", exactCount)
@@ -567,7 +567,7 @@ export default function MobileMessageApp() {
             queryExecuted: `SELECT * FROM ${TABLE_NAME} ORDER BY readable_date ASC (PAGINATED)`,
             limitApplied: false,
             orderBy: "readable_date ASC",
-            pagesFetched: page,
+            pagesFetched: totalPages,
             totalRecordsExpected: exactCount,
           },
           year2016Analysis,

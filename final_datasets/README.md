@@ -1,38 +1,35 @@
-# David-Nitzan Conversation Dataset
+# Final Datasets
 
-## Final Datasets
+This directory contains the most recent and important datasets for the David-Nitzan conversation project.
 
-This directory contains the final, verified David-Nitzan conversation datasets ready for use.
+## Current Files
 
-### Files:
+### Primary Datasets
+- `final_complete_david_nitzan_conversation.json` - Complete conversation dataset (34MB)
+- `final_complete_david_nitzan_conversation.csv` - Complete conversation in CSV format (11MB)
+- `final_complete_david_nitzan_conversation_supabase.json` - Supabase-compatible format (26MB)
 
-1. **final_complete_david_nitzan_conversation.json** - Complete conversation dataset (46,562 messages)
-   - Date range: July 23, 2015 - July 27, 2025
-   - David: 17,388 messages (37.3%)
-   - Nitzan: 29,174 messages (62.7%)
-   - All sources verified and deduplicated
+### Supabase Import Files
+- `supabase_exact_match.csv` - CSV matching original format exactly (9.4MB)
+- `supabase_exact_match_minimal.csv` - Minimal version of exact match (9.3MB)
+- `supabase_import_ready.json` - Clean JSON for Supabase import (23MB)
+- `supabase_json_import.json` - Full JSON import file (23MB)
+- `supabase_minimal_json.json` - Minimal JSON import file (11MB)
 
-2. **final_complete_david_nitzan_conversation.csv** - Supabase-ready CSV format
-   - Same data as JSON but in CSV format for database import
+## Archive Locations
 
-3. **final_complete_david_nitzan_conversation_supabase.json** - Supabase-ready JSON format
-   - Optimized JSON structure for Supabase import
-
-4. **pure_david_nitzan_no_jonathan.json/csv/supabase.json** - Alternative versions
-   - Same data but from different processing steps
+Old versions and experimental files have been moved to:
+- `archive/supabase_exports/` - Various Supabase export attempts
+- `archive/csv_versions/` - Different CSV format versions
+- `archive/json_versions/` - Different JSON format versions
+- `archive/sql_versions/` - SQL import files and chunks
+- `archive/old_datasets/` - Previous dataset versions
 
 ## Usage
 
-These files are ready for:
-- Supabase database import
-- Analysis and processing
-- Backup and archival
+For Supabase import, try these files in order:
+1. `supabase_exact_match.csv` (matches original format)
+2. `supabase_json_import.json` (JSON format)
+3. `supabase_import_ready.json` (clean JSON)
 
-## Data Quality
-
-- ✅ Only direct David-Nitzan conversations
-- ✅ No group chats or other people
-- ✅ Chronologically ordered
-- ✅ Proper sender identification
-- ✅ Complete 10-year span
-- ✅ All data sources verified
+Last updated: 2025-07-29 20:28:54

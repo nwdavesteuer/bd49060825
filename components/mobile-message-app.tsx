@@ -365,6 +365,19 @@ export default function MobileMessageApp() {
       return counts
     }
     
+    // Debug: Check what fields are actually available on the first message
+    if (messages.length > 0) {
+      const firstMsg = messages[0]
+      console.log('🎭 First message field check:', {
+        message_id: firstMsg.message_id,
+        text: firstMsg.text?.substring(0, 30),
+        all_keys: Object.keys(firstMsg),
+        has_primary_emotion: 'primary_emotion' in firstMsg,
+        primary_emotion: firstMsg.primary_emotion,
+        emotion_fields: Object.keys(firstMsg).filter(key => key.includes('emotion'))
+      })
+    }
+    
     messages.forEach((msg, index) => {
       if (!msg.text) return
       totalMessages++

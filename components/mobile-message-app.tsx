@@ -650,12 +650,26 @@ export default function MobileMessageApp() {
         
         // Debug emotion data
         if (data && data.length > 0) {
+          console.log("🔍 Checking first 3 messages for emotion fields:")
+          data.slice(0, 3).forEach((msg, index) => {
+            console.log(`   Message ${index + 1}:`, {
+              id: msg.message_id,
+              text: msg.text?.substring(0, 30),
+              has_primary_emotion: 'primary_emotion' in msg,
+              primary_emotion: msg.primary_emotion,
+              emotion_confidence: msg.emotion_confidence,
+              all_keys: Object.keys(msg).filter(key => key.includes('emotion'))
+            })
+          })
+          
           const sampleWithEmotion = data.find(msg => msg.primary_emotion && msg.primary_emotion !== 'neutral')
           if (sampleWithEmotion) {
             console.log("🎭 Sample message with emotion:")
             console.log("   Text:", sampleWithEmotion.text?.substring(0, 50))
             console.log("   Primary emotion:", sampleWithEmotion.primary_emotion)
             console.log("   Confidence:", sampleWithEmotion.emotion_confidence)
+          } else {
+            console.log("❌ No messages with emotions found in fetched data")
           }
           
           const emotionStats = {}

@@ -423,9 +423,9 @@ export default function MobileMessageApp() {
             totalPages = page
           }
           
-          // Safety check to prevent infinite loops
-          if (page > 20) {
-            console.warn("⚠️ Stopping pagination after 20 pages to prevent infinite loop")
+          // Safety check to prevent infinite loops - increased to handle 50,000+ records
+          if (page > 50) {
+            console.warn("⚠️ Stopping pagination after 50 pages to prevent infinite loop")
             hasMore = false
           }
         }
@@ -683,9 +683,11 @@ export default function MobileMessageApp() {
   // Virtual scrolling optimization: Limit displayed items for large datasets
   const displayLimit = 1000 // Show max 1000 messages at once for performance
   const limitedGroupedByDay = useMemo(() => {
-    // Temporarily show all data to debug missing years
-    return groupedByDay
-  }, [groupedByDay])
+    if (groupedByDay.length <= displayLimit) return groupedByDay
+    
+    // For large datasets, show most recent days first
+    return groupedByDay.slice(-displayLimit)
+  }, [groupedByDay, displayLimit])
 
   const selectYear = (year: number | null) => {
     setSelectedYear(year)
@@ -1010,6 +1012,18 @@ export default function MobileMessageApp() {
               </div>
             ) : (
               <>
+                {/* Performance indicator for large datasets */}
+                {groupedByDay.length > displayLimit && (
+                  <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
+                    <p className="text-yellow-300 text-sm">
+                      ⚡ Showing {limitedGroupedByDay.length} of {groupedByDay.length} days for performance
+                    </p>
+                    <p className="text-yellow-400 text-xs mt-1">
+                      Use search or year filter to see specific data
+                    </p>
+                  </div>
+                )}
+                
                 {limitedGroupedByDay.map(([dayString, dayGroups]) => (
                   <div key={dayString}>
                     <DayHeader date={new Date(dayString)} />

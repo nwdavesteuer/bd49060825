@@ -1,89 +1,27 @@
-# iMessage data files (sensitive and large)
-*.json
-*.db
-*.csv
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+# dependencies
+/node_modules
 
-# Virtual environments
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
+# next.js
+/.next/
+/out/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# production
+/build
 
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-Icon
-._*
-.DocumentRevisions-V100
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
-.Trashes
-.VolumeIcon.icns
-.com.apple.timemachine.donotpresent
-.AppleDB
-.AppleDesktop
-Network Trash Folder
-Temporary Items
-.apdisk
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# Backup files
-*_backup*
-backup/
-iMessage_Backup/
+# env files
+.env*
 
-# Large media files
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.mp4
-*.mov
-*.avi
-*.wmv
-*.flv
-*.webm
-*.mkv
+# vercel
+.vercel
 
-# Logs
-*.log
-logs/
-
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# typescript
+*.tsbuildinfo
+next-env.d.ts

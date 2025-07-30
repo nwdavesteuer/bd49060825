@@ -1,0 +1,969 @@
+"use client"
+
+import { useState, useEffect, useMemo } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Search,
+  Plus,
+  Menu,
+  ChevronUp,
+  ChevronDown,
+  MessageCircle,
+  Bell,
+  Calendar,
+  AlertTriangle,
+  Database,
+} from "lucide-react"
+import { supabase, type Message, TABLE_NAME } from "@/lib/supabase"
+
+interface MessageGroup {
+  id: string
+  messages: Message[]
+  sender: string
+  isFromMe: boolean
+  timestamp: Date
+  timeString: string
+}
+
+interface YearData {
+  year: number
+  count: number
+  isExpanded: boolean
+}
+
+interface DebugInfo {
+  totalRawMessages: number
+  sampleRawMessages: any[]
+  dateParsingResults: any[]
+  yearDistribution: Record<number, number>
+  filteringResults: {
+    beforeCutoff: number
+    afterCutoff: number
+    cutoffDate: string
+  }
+  supabaseQueryInfo: {
+    queryExecuted: string
+    limitApplied: boolean
+    orderBy: string
+  }
+  year2016Analysis: {
+    found: boolean
+    count: number
+    sampleMessages: any[]
+    dateRange: string
+    rawQuery: string
+    error?: string
+  }
+  dateRangeAnalysis: {
+    earliest: string
+    latest: string
+    totalSpan: string
+    missingYears: number[]
+  }
+}
+
+function groupMessagesByTime(messages: Message[]): MessageGroup[] {
+  const groups: MessageGroup[] = []
+  let currentGroup: Message[] = []
+  let currentSender = ""
+  let lastTimestamp = 0
+
+  const sortedMessages = [...messages].sort((a, b) => {
+    const dateA = new Date(a.date || a.readable_date).getTime()
+    const dateB = new Date(b.date || b.readable_date).getTime()
+    return dateA - dateB
+  })
+
+  for (const message of sortedMessages) {
+    const messageTime = new Date(message.date || message.readable_date).getTime()
+    const sender = String(message.is_from_me) === "1" ? "me" : "other"
+    const timeDiff = messageTime - lastTimestamp
+
+    if (sender === currentSender && timeDiff < 5 * 60 * 1000 && currentGroup.length > 0) {
+      currentGroup.push(message)
+    } else {
+      if (currentGroup.length > 0) {
+        const lastMessage = currentGroup[currentGroup.length - 1]
+        const groupTimestamp = new Date(lastMessage.date || lastMessage.readable_date)
+        groups.push({
+          id: `group-${groups.length}`,
+          messages: [...currentGroup],
+          sender: currentSender,
+          isFromMe: currentSender === "me",
+          timestamp: groupTimestamp,
+          timeString: groupTimestamp.toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+          }),
+        })
+      }
+
+      currentGroup = [message]
+      currentSender = sender
+    }
+
+    lastTimestamp = messageTime
+  }
+
+  if (currentGroup.length > 0) {
+    const lastMessage = currentGroup[currentGroup.length - 1]
+    const groupTimestamp = new Date(lastMessage.date || lastMessage.readable_date)
+    groups.push({
+      id: `group-${groups.length}`,
+      messages: [...currentGroup],
+      sender: currentSender,
+      isFromMe: currentSender === "me",
+      timestamp: groupTimestamp,
+      timeString: groupTimestamp.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+    })
+  }
+
+  return groups
+}
+
+function MessageBubble({
+  message,
+  isFromMe,
+  position,
+}: {
+  message: Message
+  isFromMe: boolean
+  position: "single" | "first" | "middle" | "last"
+}) {
+  const baseClasses = "max-w-[75%] px-4 py-2 text-sm leading-relaxed break-words"
+
+  const getCornerClasses = () => {
+    if (isFromMe) {
+      switch (position) {
+        case "single":
+          return "rounded-2xl"
+        case "first":
+          return "rounded-2xl rounded-br-md"
+        case "middle":
+          return "rounded-l-2xl rounded-r-md"
+        case "last":
+          return "rounded-2xl rounded-tr-md"
+      }
+    } else {
+      switch (position) {
+        case "single":
+          return "rounded-2xl"
+        case "first":
+          return "rounded-2xl rounded-bl-md"
+        case "middle":
+          return "rounded-r-2xl rounded-l-md"
+        case "last":
+          return "rounded-2xl rounded-tl-md"
+      }
+    }
+  }
+
+  const colorClasses = isFromMe ? "bg-blue-600 text-white ml-auto" : "bg-gray-700 text-gray-100 mr-auto"
+
+  return <div className={`${baseClasses} ${colorClasses} ${getCornerClasses()}`}>{message.text}</div>
+}
+
+function MessageGroup({ group }: { group: MessageGroup }) {
+  return (
+    <div className={`flex flex-col gap-0.5 mb-4 ${group.isFromMe ? "items-end" : "items-start"}`}>
+      {group.messages.map((message, index) => {
+        let position: "single" | "first" | "middle" | "last" = "single"
+
+        if (group.messages.length > 1) {
+          if (index === 0) position = "first"
+          else if (index === group.messages.length - 1) position = "last"
+          else position = "middle"
+        }
+
+        return (
+          <MessageBubble
+            key={message.message_id || index}
+            message={message}
+            isFromMe={group.isFromMe}
+            position={position}
+          />
+        )
+      })}
+      <div className={`text-xs text-gray-400 mt-1 px-2 ${group.isFromMe ? "text-right" : "text-left"}`}>
+        {group.timeString}
+      </div>
+    </div>
+  )
+}
+
+function DayHeader({ date }: { date: Date }) {
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  let dateString = ""
+  if (date.toDateString() === today.toDateString()) {
+    dateString = "Today"
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    dateString = "Yesterday"
+  } else {
+    dateString = date.toLocaleDateString([], {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
+  }
+
+  return (
+    <div className="flex justify-center my-6">
+      <div className="bg-gray-800 px-3 py-1 rounded-full text-xs text-gray-300 font-medium">{dateString}</div>
+    </div>
+  )
+}
+
+export default function MobileMessageApp() {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const [yearData, setYearData] = useState<YearData[]>([])
+  const [messagesExpanded, setMessagesExpanded] = useState(true)
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null)
+  const [showDebug, setShowDebug] = useState(false)
+
+  useEffect(() => {
+    async function fetchMessages() {
+      try {
+        setLoading(true)
+        setError(null)
+
+        console.log("=== COMPREHENSIVE 2016 MESSAGE HUNT ===")
+        console.log("Fetching from table:", TABLE_NAME)
+        console.log("Timestamp:", new Date().toISOString())
+
+        // Step 1: Get exact count from database
+        console.log("Step 1: Getting exact count...")
+        const { count: exactCount, error: countError } = await supabase
+          .from(TABLE_NAME)
+          .select("*", { count: "exact", head: true })
+
+        if (countError) {
+          console.error("Count query error:", countError)
+          throw countError
+        }
+
+        console.log("✅ EXACT COUNT FROM DATABASE:", exactCount)
+
+        // Step 2: MULTIPLE 2016 QUERIES TO HUNT DOWN THE DATA
+        console.log("Step 2: HUNTING FOR 2016 DATA WITH MULTIPLE QUERIES...")
+
+        // Query 1: Exact 2016 year match
+        console.log("🔍 Query 1: Exact 2016 year match...")
+        const { data: year2016Exact, error: error2016Exact } = await supabase
+          .from(TABLE_NAME)
+          .select("*")
+          .gte("readable_date", "2016-01-01")
+          .lt("readable_date", "2017-01-01")
+          .order("readable_date", { ascending: true })
+
+        console.log("Query 1 result:", year2016Exact?.length || 0, "messages")
+        if (year2016Exact && year2016Exact.length > 0) {
+          console.log("✅ FOUND 2016 DATA WITH EXACT QUERY!")
+          console.log("First 2016 message:", year2016Exact[0])
+          console.log("Last 2016 message:", year2016Exact[year2016Exact.length - 1])
+        }
+
+        // Query 2: Contains "2016" in readable_date
+        console.log("🔍 Query 2: Contains '2016' in readable_date...")
+        const { data: year2016Contains, error: error2016Contains } = await supabase
+          .from(TABLE_NAME)
+          .select("*")
+          .ilike("readable_date", "%2016%")
+          .order("readable_date", { ascending: true })
+
+        console.log("Query 2 result:", year2016Contains?.length || 0, "messages")
+        if (year2016Contains && year2016Contains.length > 0) {
+          console.log("✅ FOUND 2016 DATA WITH CONTAINS QUERY!")
+          console.log("Sample contains results:", year2016Contains.slice(0, 3))
+        }
+
+        // Query 3: Get date range to see what years exist
+        console.log("🔍 Query 3: Getting date range...")
+        const { data: dateRangeData, error: dateRangeError } = await supabase
+          .from(TABLE_NAME)
+          .select("readable_date")
+          .order("readable_date", { ascending: true })
+
+        let dateRangeAnalysis = {
+          earliest: "Unknown",
+          latest: "Unknown",
+          totalSpan: "Unknown",
+          missingYears: [] as number[],
+        }
+
+        if (dateRangeData && dateRangeData.length > 0) {
+          const validDates = dateRangeData
+            .map((d) => new Date(d.readable_date))
+            .filter((d) => !isNaN(d.getTime()))
+            .sort((a, b) => a.getTime() - b.getTime())
+
+          if (validDates.length > 0) {
+            const earliest = validDates[0]
+            const latest = validDates[validDates.length - 1]
+
+            dateRangeAnalysis = {
+              earliest: earliest.toISOString().substring(0, 10),
+              latest: latest.toISOString().substring(0, 10),
+              totalSpan: `${latest.getFullYear() - earliest.getFullYear()} years`,
+              missingYears: [],
+            }
+
+            // Check for missing years
+            const startYear = earliest.getFullYear()
+            const endYear = latest.getFullYear()
+            const existingYears = new Set(validDates.map((d) => d.getFullYear()))
+
+            for (let year = startYear; year <= endYear; year++) {
+              if (!existingYears.has(year)) {
+                dateRangeAnalysis.missingYears.push(year)
+              }
+            }
+
+            console.log("✅ DATE RANGE ANALYSIS:")
+            console.log("- Earliest:", dateRangeAnalysis.earliest)
+            console.log("- Latest:", dateRangeAnalysis.latest)
+            console.log("- Span:", dateRangeAnalysis.totalSpan)
+            console.log("- Missing years:", dateRangeAnalysis.missingYears)
+            console.log("- 2016 exists:", existingYears.has(2016) ? "YES" : "NO")
+          }
+        }
+
+        // Query 4: Sample messages around 2016 timeframe
+        console.log("🔍 Query 4: Messages around 2016 timeframe...")
+        const { data: around2016, error: errorAround2016 } = await supabase
+          .from(TABLE_NAME)
+          .select("*")
+          .gte("readable_date", "2015-06-01")
+          .lt("readable_date", "2017-06-01")
+          .order("readable_date", { ascending: true })
+
+        console.log("Query 4 result:", around2016?.length || 0, "messages around 2016")
+        if (around2016 && around2016.length > 0) {
+          const yearCounts: Record<number, number> = {}
+          around2016.forEach((msg) => {
+            const year = new Date(msg.readable_date).getFullYear()
+            if (!isNaN(year)) {
+              yearCounts[year] = (yearCounts[year] || 0) + 1
+            }
+          })
+          console.log("Year distribution around 2016:", yearCounts)
+        }
+
+        // Consolidate 2016 analysis
+        const year2016Analysis = {
+          found: (year2016Exact?.length || 0) > 0 || (year2016Contains?.length || 0) > 0,
+          count: Math.max(year2016Exact?.length || 0, year2016Contains?.length || 0),
+          sampleMessages: year2016Exact?.slice(0, 3) || year2016Contains?.slice(0, 3) || [],
+          dateRange:
+            year2016Exact && year2016Exact.length > 0
+              ? `${year2016Exact[0].readable_date} to ${year2016Exact[year2016Exact.length - 1].readable_date}`
+              : "No 2016 data found",
+          rawQuery: "Multiple queries executed",
+          error: error2016Exact?.message || error2016Contains?.message,
+        }
+
+        console.log("🎯 FINAL 2016 ANALYSIS:", year2016Analysis)
+
+        // Step 3: Get ALL messages without any limit
+        console.log("Step 3: Fetching ALL messages (no limit)...")
+        const startTime = Date.now()
+        const { data, error: fetchError } = await supabase
+          .from(TABLE_NAME)
+          .select("*")
+          .order("readable_date", { ascending: true })
+
+        const queryTime = Date.now() - startTime
+        console.log(`✅ Main query completed in ${queryTime}ms`)
+
+        if (fetchError) {
+          console.error("❌ Main fetch error:", fetchError)
+          throw fetchError
+        }
+
+        console.log("✅ RAW DATA RECEIVED:")
+        console.log("- Expected count:", exactCount)
+        console.log("- Actual received:", data?.length)
+        console.log("- Match:", exactCount === data?.length ? "✅ YES" : "❌ NO")
+
+        if (!data || data.length === 0) {
+          setError("No messages found in the database")
+          return
+        }
+
+        // Step 4: Analyze ALL dates to find 2016
+        console.log("=== ANALYZING ALL DATES FOR 2016 ===")
+        const dateParsingResults: any[] = []
+        const yearDistribution: Record<number, number> = {}
+        let validDates = 0
+        let invalidDates = 0
+        let found2016InParsing = 0
+
+        data.forEach((msg: any, index: number) => {
+          try {
+            const originalDate = msg.readable_date
+            if (!originalDate) {
+              invalidDates++
+              return
+            }
+
+            const parsedDate = new Date(originalDate)
+            const year = parsedDate.getFullYear()
+            const isValid = !isNaN(parsedDate.getTime()) && year > 1900 && year < 2030
+
+            if (isValid) {
+              validDates++
+              yearDistribution[year] = (yearDistribution[year] || 0) + 1
+
+              if (year === 2016) {
+                found2016InParsing++
+                if (found2016InParsing <= 5) {
+                  console.log(`🎯 FOUND 2016 MESSAGE #${found2016InParsing}:`, {
+                    index,
+                    original: originalDate,
+                    parsed: parsedDate.toISOString(),
+                    text: msg.text?.substring(0, 50) + "...",
+                  })
+                }
+              }
+            } else {
+              invalidDates++
+            }
+
+            // Store detailed info for first 20 messages
+            if (index < 20) {
+              dateParsingResults.push({
+                index,
+                original: originalDate,
+                parsed: isValid ? parsedDate.toISOString() : "INVALID",
+                year: isValid ? year : "INVALID",
+                isValid,
+              })
+            }
+          } catch (e) {
+            invalidDates++
+          }
+        })
+
+        console.log("✅ DATE PARSING RESULTS:")
+        console.log("- Valid dates:", validDates)
+        console.log("- Invalid dates:", invalidDates)
+        console.log("- 2016 messages found in parsing:", found2016InParsing)
+        console.log("- Year distribution:", yearDistribution)
+
+        // Step 5: Process messages (NO FILTERING)
+        console.log("=== MESSAGE PROCESSING (NO FILTERING) ===")
+        const normalizedMessages: Message[] = []
+        let processingErrors = 0
+
+        data.forEach((msg: any, index: number) => {
+          try {
+            const messageDate = new Date(msg.readable_date)
+            const year = messageDate.getFullYear()
+            const isValidDate = !isNaN(messageDate.getTime()) && year > 1900 && year < 2030
+
+            if (isValidDate) {
+              normalizedMessages.push({
+                text: msg.text || "",
+                data: msg.data || "",
+                date_read: msg.date_read || "",
+                is_from_me: msg.is_from_me,
+                sender: msg.sender || "",
+                recipient: msg.recipient || "",
+                has_attachments: msg.has_attachments,
+                attachments_info: msg.attachments_info || "",
+                emojis: msg.emojis || "",
+                links: msg.links || "",
+                service: msg.service || "",
+                account: msg.account || "",
+                contact_id: msg.contact_id || "",
+                readable_date: msg.readable_date || "",
+                message_id: index,
+                date: messageDate.toISOString(),
+                message_type: msg.has_attachments && msg.has_attachments !== "0" ? "image" : "text",
+                year: year,
+                month: messageDate.getMonth() + 1,
+                day: messageDate.getDate(),
+              })
+            }
+          } catch (e) {
+            processingErrors++
+          }
+        })
+
+        // Step 6: Final year counts
+        const finalYearCounts: { [year: number]: number } = {}
+        normalizedMessages.forEach((msg) => {
+          const year = new Date(msg.date).getFullYear()
+          finalYearCounts[year] = (finalYearCounts[year] || 0) + 1
+        })
+
+        console.log("✅ FINAL RESULTS:")
+        console.log("- Total processed messages:", normalizedMessages.length)
+        console.log("- Final year distribution:", finalYearCounts)
+        console.log("- 2016 in final data:", finalYearCounts[2016] || 0)
+
+        // Set debug info
+        setDebugInfo({
+          totalRawMessages: data.length,
+          sampleRawMessages: data.slice(0, 5),
+          dateParsingResults,
+          yearDistribution,
+          filteringResults: {
+            beforeCutoff: 0,
+            afterCutoff: normalizedMessages.length,
+            cutoffDate: "DISABLED",
+          },
+          supabaseQueryInfo: {
+            queryExecuted: `SELECT * FROM ${TABLE_NAME} ORDER BY readable_date ASC`,
+            limitApplied: false,
+            orderBy: "readable_date ASC",
+          },
+          year2016Analysis,
+          dateRangeAnalysis,
+        })
+
+        setMessages(normalizedMessages)
+
+        const years = Object.keys(finalYearCounts)
+          .map((year) => Number.parseInt(year))
+          .sort((a, b) => b - a)
+          .map((year) => ({
+            year,
+            count: finalYearCounts[year],
+            isExpanded: false,
+          }))
+
+        setYearData(years)
+
+        console.log("=== HUNT COMPLETE ===")
+        if (!finalYearCounts[2016]) {
+          console.log("🚨 2016 MESSAGES NOT FOUND IN FINAL DATA")
+          console.log("Check the debug panel for detailed analysis")
+        } else {
+          console.log("✅ 2016 MESSAGES FOUND:", finalYearCounts[2016])
+        }
+      } catch (err: any) {
+        console.error("❌ FATAL ERROR:", err)
+        setError(`Failed to load messages: ${err.message}`)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchMessages()
+  }, [])
+
+  const filteredMessages = useMemo(() => {
+    let filtered = messages
+
+    if (selectedYear) {
+      filtered = filtered.filter((msg) => new Date(msg.date).getFullYear() === selectedYear)
+    }
+
+    if (searchQuery) {
+      filtered = filtered.filter((msg) => msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
+    }
+
+    return filtered
+  }, [messages, selectedYear, searchQuery])
+
+  const messageGroups = useMemo(() => groupMessagesByTime(filteredMessages), [filteredMessages])
+
+  const groupedByDay = useMemo(() => {
+    const dayGroups: { [key: string]: MessageGroup[] } = {}
+
+    messageGroups.forEach((group) => {
+      const dayKey = group.timestamp.toDateString()
+      if (!dayGroups[dayKey]) {
+        dayGroups[dayKey] = []
+      }
+      dayGroups[dayKey].push(group)
+    })
+
+    return Object.entries(dayGroups).sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+  }, [messageGroups])
+
+  const selectYear = (year: number | null) => {
+    setSelectedYear(year)
+    setSidebarOpen(false)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Hunting for 2016 messages in {TABLE_NAME}...</p>
+          <p className="text-xs text-gray-500 mt-2">Running multiple queries to find 2016 data...</p>
+          <p className="text-xs text-yellow-400 mt-1">Check console for detailed hunt progress</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+          <h2 className="text-red-400 font-semibold mb-2">Connection Error</h2>
+          <p className="text-gray-300 mb-4">{error}</p>
+          <div className="text-xs text-gray-400 mb-4">
+            <p>Table: {TABLE_NAME}</p>
+            <p>Check console for comprehensive debug info</p>
+          </div>
+          <Button onClick={() => window.location.reload()} className="w-full bg-blue-600 hover:bg-blue-700">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-gray-100">
+      {/* Header */}
+      <div className="bg-gray-800 border-b border-gray-700 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400 rounded-full"
+            />
+          </div>
+
+          <Button
+            size="sm"
+            onClick={() => setShowDebug(!showDebug)}
+            className={`rounded-lg p-2 ${showDebug ? "bg-yellow-600 hover:bg-yellow-700" : "bg-red-600 hover:bg-red-700"}`}
+          >
+            <AlertTriangle className="h-4 w-4" />
+          </Button>
+
+          <Button size="sm" className="bg-purple-600 hover:bg-purple-700 rounded-lg p-2">
+            <Database className="h-4 w-4" />
+          </Button>
+
+          <Button size="sm" className="bg-gray-700 hover:bg-gray-600 rounded-full p-2">
+            <Plus className="h-4 w-4" />
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="bg-gray-700 hover:bg-gray-600 rounded-lg p-2"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Debug Panel */}
+      {showDebug && debugInfo && (
+        <div className="bg-red-900 border-b border-red-700 p-4 text-xs">
+          <h3 className="text-red-200 font-semibold mb-3">🔍 WHERE ARE THE 2016 MESSAGES?</h3>
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <div className="bg-red-800 p-3 rounded">
+              <h4 className="text-red-300 font-medium mb-2">Database</h4>
+              <p className="text-red-100">Total: {debugInfo.totalRawMessages}</p>
+              <p className="text-red-100">Expected: 20,000+</p>
+              <p className={`${debugInfo.totalRawMessages < 1000 ? "text-red-300 font-bold" : "text-red-100"}`}>
+                Status: {debugInfo.totalRawMessages < 1000 ? "🚨 LOW" : "✅ OK"}
+              </p>
+            </div>
+
+            <div className="bg-blue-800 p-3 rounded">
+              <h4 className="text-blue-300 font-medium mb-2">Date Range</h4>
+              <p className="text-blue-100">From: {debugInfo.dateRangeAnalysis.earliest}</p>
+              <p className="text-blue-100">To: {debugInfo.dateRangeAnalysis.latest}</p>
+              <p className="text-blue-100">Span: {debugInfo.dateRangeAnalysis.totalSpan}</p>
+              <p
+                className={`${debugInfo.dateRangeAnalysis.missingYears.includes(2016) ? "text-red-300" : "text-green-300"}`}
+              >
+                2016: {debugInfo.dateRangeAnalysis.missingYears.includes(2016) ? "MISSING" : "EXISTS"}
+              </p>
+            </div>
+
+            <div className="bg-purple-800 p-3 rounded">
+              <h4 className="text-purple-300 font-medium mb-2">2016 Hunt</h4>
+              <p className={`${debugInfo.year2016Analysis.found ? "text-green-100" : "text-red-100"}`}>
+                Found: {debugInfo.year2016Analysis.found ? "YES" : "NO"}
+              </p>
+              <p className="text-purple-100">Count: {debugInfo.year2016Analysis.count}</p>
+              <p className="text-purple-100">Range: {debugInfo.year2016Analysis.dateRange.substring(0, 20)}...</p>
+              {debugInfo.year2016Analysis.error && (
+                <p className="text-red-300">Error: {debugInfo.year2016Analysis.error}</p>
+              )}
+            </div>
+
+            <div className="bg-yellow-800 p-3 rounded">
+              <h4 className="text-yellow-300 font-medium mb-2">Year Distribution</h4>
+              {Object.entries(debugInfo.yearDistribution)
+                .slice(0, 4)
+                .map(([year, count]) => (
+                  <p key={year} className={`${year === "2016" ? "text-green-100 font-bold" : "text-yellow-100"}`}>
+                    {year}: {count}
+                  </p>
+                ))}
+              <p className="text-yellow-200">2016: {debugInfo.yearDistribution[2016] || 0}</p>
+            </div>
+
+            <div className="bg-green-800 p-3 rounded">
+              <h4 className="text-green-300 font-medium mb-2">Processing</h4>
+              <p className="text-green-100">Processed: {messages.length}</p>
+              <p className="text-green-100">Filter: {debugInfo.filteringResults.cutoffDate}</p>
+              <p className="text-green-100">2016 Final: {yearData.find((y) => y.year === 2016)?.count || 0}</p>
+            </div>
+
+            <div className="bg-gray-800 p-3 rounded">
+              <h4 className="text-gray-300 font-medium mb-2">Missing Years</h4>
+              {debugInfo.dateRangeAnalysis.missingYears.length > 0 ? (
+                debugInfo.dateRangeAnalysis.missingYears.slice(0, 5).map((year) => (
+                  <p key={year} className={`${year === 2016 ? "text-red-300 font-bold" : "text-gray-100"}`}>
+                    {year}
+                  </p>
+                ))
+              ) : (
+                <p className="text-green-100">None</p>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-3 p-2 bg-gray-800 rounded">
+            <p className="text-gray-300">
+              <strong>Conclusion:</strong>{" "}
+              {debugInfo.year2016Analysis.found
+                ? `✅ 2016 data exists in database (${debugInfo.year2016Analysis.count} messages)`
+                : "❌ No 2016 data found in database"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex">
+        {/* Sidebar */}
+        <div
+          className={`
+          fixed inset-y-0 left-0 z-50 w-80 bg-gray-800 border-r border-gray-700 transform transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:relative lg:translate-x-0
+        `}
+        >
+          <div className="flex flex-col h-full">
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <MessageCircle className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-gray-100">Message Timeline</h2>
+                  <p className="text-xs text-gray-400">{filteredMessages.length.toLocaleString()} messages</p>
+                  <p className="text-xs text-green-400">Table: {TABLE_NAME}</p>
+                  {debugInfo && (
+                    <>
+                      <p
+                        className={`text-xs ${debugInfo.totalRawMessages < 1000 ? "text-red-400" : "text-yellow-400"}`}
+                      >
+                        Raw: {debugInfo.totalRawMessages.toLocaleString()}
+                      </p>
+                      <p className={`text-xs ${debugInfo.year2016Analysis.found ? "text-green-400" : "text-red-400"}`}>
+                        2016: {debugInfo.year2016Analysis.found ? debugInfo.year2016Analysis.count : "NOT FOUND"}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-4">
+                <button
+                  onClick={() => setMessagesExpanded(!messagesExpanded)}
+                  className="flex items-center justify-between w-full text-left mb-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <MessageCircle className="h-4 w-4 text-gray-400" />
+                    <span className="font-medium text-gray-100">MESSAGES</span>
+                  </div>
+                  {messagesExpanded ? (
+                    <ChevronUp className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+
+                {messagesExpanded && (
+                  <div className="space-y-1 ml-7">
+                    <button
+                      onClick={() => selectYear(null)}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                        selectedYear === null
+                          ? "bg-gray-700 text-gray-100"
+                          : "text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>All Messages</span>
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${messages.length < 1000 ? "bg-red-600" : "bg-gray-600"}`}
+                        >
+                          {messages.length.toLocaleString()}
+                        </span>
+                      </div>
+                    </button>
+
+                    {yearData.map((yearInfo) => (
+                      <div key={yearInfo.year}>
+                        <button
+                          onClick={() => selectYear(yearInfo.year)}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                            selectedYear === yearInfo.year
+                              ? "bg-gray-700 text-gray-100"
+                              : "text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-2 h-2 rounded-full ${
+                                  yearInfo.year === 2016
+                                    ? "bg-purple-500"
+                                    : yearInfo.year >= 2020
+                                      ? "bg-purple-500"
+                                      : yearInfo.year >= 2018
+                                        ? "bg-pink-500"
+                                        : "bg-gray-500"
+                                }`}
+                              />
+                              <span>{yearInfo.year}</span>
+                              {yearInfo.year === 2016 && (
+                                <span className="text-xs text-purple-400 font-medium">FOUND</span>
+                              )}
+                            </div>
+                            <span className="text-xs bg-gray-600 px-2 py-1 rounded-full">
+                              {yearInfo.count.toLocaleString()}
+                            </span>
+                          </div>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-gray-700">
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Bell className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm text-gray-400">2016 Hunt</span>
+                  </div>
+                  <div
+                    className={`text-white text-xs rounded-full px-2 py-1 ${
+                      debugInfo?.year2016Analysis.found ? "bg-green-500" : "bg-red-500"
+                    }`}
+                  >
+                    {debugInfo?.year2016Analysis.found ? "Found" : "Missing"}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                    <span className="text-sm font-medium text-white">2016</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-100">
+                      {debugInfo?.year2016Analysis.found ? "Data Found" : "Data Missing"}
+                    </div>
+                    <div className="text-xs text-gray-400">{debugInfo?.year2016Analysis.count || 0} messages</div>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 min-h-screen">
+          <div className="bg-gray-800 border-b border-gray-700 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="font-semibold text-gray-100">
+                  {selectedYear ? `Messages from ${selectedYear}` : "All Messages"}
+                </h1>
+                <p className="text-xs text-gray-400">
+                  {filteredMessages.length.toLocaleString()} messages
+                  {searchQuery && ` matching "${searchQuery}"`} • {TABLE_NAME}
+                </p>
+                {messages.length < 1000 && (
+                  <p className="text-xs text-red-400 font-medium">
+                    ⚠️ Expected 20,000+ messages but only loaded {messages.length}
+                  </p>
+                )}
+                {debugInfo && (
+                  <p
+                    className={`text-xs font-medium ${debugInfo.year2016Analysis.found ? "text-green-400" : "text-red-400"}`}
+                  >
+                    {debugInfo.year2016Analysis.found
+                      ? `✅ Found ${debugInfo.year2016Analysis.count} messages from 2016`
+                      : "❌ No 2016 messages found in database"}
+                  </p>
+                )}
+              </div>
+              <Calendar className="h-5 w-5 text-gray-400" />
+            </div>
+          </div>
+
+          <div className="px-4 py-6 max-w-2xl mx-auto">
+            {groupedByDay.length === 0 ? (
+              <div className="text-center py-12">
+                <MessageCircle className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400">
+                  {searchQuery ? "No messages found matching your search" : "No messages found"}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Table: {TABLE_NAME}</p>
+                {debugInfo && (
+                  <div className="mt-4 text-xs">
+                    <p className="text-yellow-400">Raw database had {debugInfo.totalRawMessages} messages</p>
+                    <p className={`${debugInfo.year2016Analysis.found ? "text-green-400" : "text-red-400"}`}>
+                      2016 data: {debugInfo.year2016Analysis.found ? "Found" : "Not found"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              groupedByDay.map(([dayString, dayGroups]) => (
+                <div key={dayString}>
+                  <DayHeader date={new Date(dayString)} />
+                  {dayGroups.map((group) => (
+                    <MessageGroup key={group.id} group={group} />
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+    </div>
+  )
+}

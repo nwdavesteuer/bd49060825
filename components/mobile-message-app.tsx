@@ -326,6 +326,9 @@ export default function MobileMessageApp() {
 
   // Calculate emotion filter counts using pre-analyzed data
   const emotionCounts = useMemo(() => {
+    console.log('🎭 Starting emotion count calculation...')
+    console.log('   Messages available:', messages.length)
+    
     const counts = {
       love: 0,
       joy: 0,
@@ -383,8 +386,16 @@ export default function MobileMessageApp() {
     console.log(`   Total messages: ${totalMessages}`)
     console.log(`   Messages with emotions: ${messagesWithEmotions}`)
     console.log(`   Neutral messages: ${neutralCount}`)
+    console.log(`   Messages array length: ${messages.length}`)
+    console.log(`   First few messages:`, messages.slice(0, 3).map(msg => ({
+      id: msg.message_id,
+      text: msg.text?.substring(0, 30),
+      primary_emotion: msg.primary_emotion,
+      emotion_confidence: msg.emotion_confidence
+    })))
     console.log(`   Emotion counts:`, counts)
 
+    console.log('🎭 Final emotion counts:', counts)
     return counts
   }, [messages])
 

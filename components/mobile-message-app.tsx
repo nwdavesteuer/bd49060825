@@ -267,7 +267,7 @@ export default function MobileMessageApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchMode, setSearchMode] = useState<"all" | "year">("all")
-  const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const [selectedYear, setSelectedYear] = useState<number | null>(2015)
   const [yearData, setYearData] = useState<YearData[]>([])
   const [messagesExpanded, setMessagesExpanded] = useState(true)
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null)

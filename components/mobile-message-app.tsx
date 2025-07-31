@@ -191,23 +191,54 @@ function MessageBubble({
     ? `Emotion: ${message.primary_emotion} (${Math.round(message.emotion_confidence * 100)}% confidence)`
     : undefined
   
+  // Get subtle emotion color tint
+  const getEmotionTint = () => {
+    if (!hasEmotionData || message.emotion_confidence < 0.1) return ''
+    
+    const emotion = message.primary_emotion?.toLowerCase()
+    const intensity = Math.min(message.emotion_confidence * 2, 0.3) // Max 30% opacity
+    
+    const tints: { [key: string]: string } = {
+      'love': `border-l-4 border-l-red-400`,
+      'joy': `border-l-4 border-l-yellow-400`,
+      'sadness': `border-l-4 border-l-blue-400`,
+      'anger': `border-l-4 border-l-red-500`,
+      'fear': `border-l-4 border-l-purple-400`,
+      'surprise': `border-l-4 border-l-orange-400`,
+      'disgust': `border-l-4 border-l-green-400`,
+      'neutral': `border-l-4 border-l-gray-400`,
+      'relief': `border-l-4 border-l-green-300`,
+      'excitement': `border-l-4 border-l-yellow-300`,
+      'gratitude': `border-l-4 border-l-green-200`,
+      'sweet': `border-l-4 border-l-pink-300`,
+      'support': `border-l-4 border-l-blue-300`,
+      'intimacy': `border-l-4 border-l-red-300`,
+      'flirtation': `border-l-4 border-l-pink-400`,
+      'playfulness': `border-l-4 border-l-cyan-300`,
+      'nostalgia': `border-l-4 border-l-teal-300`,
+      'longing': `border-l-4 border-l-purple-300`,
+      'confusion': `border-l-4 border-l-gray-500`,
+      'anxiety': `border-l-4 border-l-orange-500`,
+      'fights': `border-l-4 border-l-red-600`,
+      'sexiness': `border-l-4 border-l-pink-500`,
+      'jealousy': `border-l-4 border-l-yellow-500`,
+      'celebration': `border-l-4 border-l-purple-400`,
+      'deepTalks': `border-l-4 border-l-indigo-400`
+    }
+    
+    return tints[emotion] || ''
+  }
+  
   return (
     <div 
-      className={`${baseClasses} ${colorClasses} ${getCornerClasses()} group relative`}
+      className={`${baseClasses} ${colorClasses} ${getCornerClasses()} ${getEmotionTint()} group relative transition-all duration-200`}
       title={emotionTooltip}
     >
       {displayText}
       
-      {/* Emotion indicator - show for any emotion with >5% confidence */}
-      {hasEmotionData && message.emotion_confidence > 0.05 && (
-        <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 opacity-60 group-hover:opacity-100 transition-opacity duration-200" />
-      )}
-      
-      {/* Emotion badge for any emotion with >10% confidence */}
-      {hasEmotionData && message.emotion_confidence > 0.1 && (
-        <div className="absolute -bottom-1 -right-1 px-1.5 py-0.5 text-xs rounded-full bg-purple-600 text-white opacity-80 group-hover:opacity-100 transition-opacity duration-200">
-          {message.primary_emotion}
-        </div>
+      {/* Subtle emotion indicator - only on hover for high confidence */}
+      {hasEmotionData && message.emotion_confidence > 0.2 && message.primary_emotion !== 'neutral' && (
+        <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
       )}
     </div>
   )
@@ -1333,207 +1364,174 @@ export default function MobileMessageApp() {
         </div>
       </div>
 
-      {/* Search Panel */}
+      {/* Compact Emotion Filters Panel */}
       {showSearchPanel && (
-        <div className="bg-blue-900 border-b border-blue-700 p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <h3 className="text-blue-200 font-semibold mb-3">🔍 Advanced Search</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-blue-300 text-sm">Search Mode</label>
-                  <div className="flex gap-2 mt-1">
-                    <button
-                      onClick={() => setSearchMode("all")}
-                      className={`px-3 py-1 rounded text-xs ${
-                        searchMode === "all" 
-                          ? "bg-blue-600 text-white" 
-                          : "bg-gray-600 text-gray-300"
-                      }`}
-                    >
-                      All Messages
-                    </button>
-                    <button
-                      onClick={() => setSearchMode("year")}
-                      className={`px-3 py-1 rounded text-xs ${
-                        searchMode === "year" 
-                          ? "bg-blue-600 text-white" 
-                          : "bg-gray-600 text-gray-300"
-                      }`}
-                    >
-                      This Year Only
-                    </button>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="text-blue-300 text-sm">Quick Filters</label>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ ...prev, hasAttachments: !prev.hasAttachments }))}
-                      className={`px-2 py-1 rounded text-xs ${
-                        searchFilters.hasAttachments 
-                          ? "bg-green-600 text-white" 
-                          : "bg-gray-600 text-gray-300"
-                      }`}
-                    >
-                      📎 Attachments
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ ...prev, hasLinks: !prev.hasLinks }))}
-                      className={`px-2 py-1 rounded text-xs ${
-                        searchFilters.hasLinks 
-                          ? "bg-green-600 text-white" 
-                          : "bg-gray-600 text-gray-300"
-                      }`}
-                    >
-                      🔗 Links
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ ...prev, hasEmojis: !prev.hasEmojis }))}
-                      className={`px-2 py-1 rounded text-xs ${
-                        searchFilters.hasEmojis 
-                          ? "bg-green-600 text-white" 
-                          : "bg-gray-600 text-gray-300"
-                      }`}
-                    >
-                      😊 Emojis
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-blue-300 text-sm">Emotion Filters</label>
-                  <div className="grid grid-cols-3 gap-2 mt-1">
+        <div className="bg-blue-900 border-b border-blue-700 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-blue-200 font-semibold text-sm">🎭 Emotions</h3>
+            <button
+              onClick={() => setSearchFilters({
+                sender: "",
+                dateRange: "",
+                hasAttachments: false,
+                hasLinks: false,
+                hasEmojis: false,
+                emotions: {
+                  love: false, joy: false, sweet: false, support: false,
+                  celebration: false, deepTalks: false, fights: false,
+                  anxiety: false, excitement: false, sadness: false,
+                  gratitude: false, sexiness: false, flirtation: false,
+                  intimacy: false, jealousy: false, nostalgia: false,
+                  surprise: false, confusion: false, relief: false,
+                  longing: false, playfulness: false, neutral: false
+                }
+              })}
+              className="text-xs text-blue-300 hover:text-blue-200"
+            >
+              Clear
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-6 gap-1">
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, love: !prev.emotions.love }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.love 
-                          ? "bg-red-500 text-white shadow-lg" 
+                          ? "bg-red-500 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Love: ${emotionCounts.love} messages`}
                     >
-                      ❤️ Love ({emotionCounts.love})
+                      ❤️ {emotionCounts.love}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, joy: !prev.emotions.joy }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.joy 
-                          ? "bg-yellow-500 text-white shadow-lg" 
+                          ? "bg-yellow-500 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Joy: ${emotionCounts.joy} messages`}
                     >
-                      😂 Joy ({emotionCounts.joy})
+                      😂 {emotionCounts.joy}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, sweet: !prev.emotions.sweet }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.sweet 
-                          ? "bg-pink-500 text-white shadow-lg" 
+                          ? "bg-pink-500 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Sweet: ${emotionCounts.sweet} messages`}
                     >
-                      🥰 Sweet ({emotionCounts.sweet})
+                      🥰 {emotionCounts.sweet}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, support: !prev.emotions.support }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.support 
-                          ? "bg-blue-500 text-white shadow-lg" 
+                          ? "bg-blue-500 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Support: ${emotionCounts.support} messages`}
                     >
-                      😢 Support ({emotionCounts.support})
+                      😢 {emotionCounts.support}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, celebration: !prev.emotions.celebration }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.celebration 
-                          ? "bg-purple-500 text-white shadow-lg" 
+                          ? "bg-purple-500 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Celebration: ${emotionCounts.celebration} messages`}
                     >
-                      🎉 Celebration ({emotionCounts.celebration})
+                      🎉 {emotionCounts.celebration}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, deepTalks: !prev.emotions.deepTalks }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.deepTalks 
-                          ? "bg-indigo-500 text-white shadow-lg" 
+                          ? "bg-indigo-500 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Deep Talks: ${emotionCounts.deepTalks} messages`}
                     >
-                      💭 Deep Talks ({emotionCounts.deepTalks})
+                      💭 {emotionCounts.deepTalks}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, fights: !prev.emotions.fights }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.fights 
-                          ? "bg-red-600 text-white shadow-lg" 
+                          ? "bg-red-600 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Fights: ${emotionCounts.fights} messages`}
                     >
-                      😠 Fights ({emotionCounts.fights})
+                      😠 {emotionCounts.fights}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, anxiety: !prev.emotions.anxiety }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.anxiety 
-                          ? "bg-orange-600 text-white shadow-lg" 
+                          ? "bg-orange-600 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Anxiety: ${emotionCounts.anxiety} messages`}
                     >
-                      😰 Anxiety ({emotionCounts.anxiety})
+                      😰 {emotionCounts.anxiety}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, excitement: !prev.emotions.excitement }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.excitement 
-                          ? "bg-yellow-600 text-white shadow-lg" 
+                          ? "bg-yellow-600 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Excitement: ${emotionCounts.excitement} messages`}
                     >
-                      🎉 Excitement ({emotionCounts.excitement})
+                      🎉 {emotionCounts.excitement}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, sadness: !prev.emotions.sadness }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.sadness 
-                          ? "bg-blue-600 text-white shadow-lg" 
+                          ? "bg-blue-600 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Sadness: ${emotionCounts.sadness} messages`}
                     >
-                      😢 Sadness ({emotionCounts.sadness})
+                      😢 {emotionCounts.sadness}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
@@ -1731,44 +1729,6 @@ export default function MobileMessageApp() {
                   >
                     🗑️ Clear All Filters
                   </button>
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <h3 className="text-blue-200 font-semibold mb-3">💡 Search Tips</h3>
-              <div className="text-blue-300 text-xs space-y-2">
-                <p><strong>Commands:</strong></p>
-                <ul className="space-y-1 ml-2">
-                  <li><code>/sender david</code> - Find messages from David</li>
-                  <li><code>/date 2025</code> - Find messages from 2025</li>
-                  <li><code>/link</code> - Find messages with links</li>
-                  <li><code>/emoji</code> - Find messages with emojis</li>
-                  <li><code>/attachment</code> - Find messages with attachments</li>
-                </ul>
-                <p className="mt-2"><strong>Discovery:</strong></p>
-                <ul className="space-y-1 ml-2">
-                  <li>• Search across all years for patterns</li>
-                  <li>• Use filters to find specific content types</li>
-                  <li>• Combine search with year selection</li>
-                </ul>
-              </div>
-            </div>
-            
-            <div>
-              <h3 className="text-blue-200 font-semibold mb-3">🔥 Trending Topics</h3>
-              <div className="text-blue-300 text-xs">
-                <p className="mb-2">Popular words in your conversations:</p>
-                <div className="flex flex-wrap gap-1">
-                  {generateSearchSuggestions.slice(0, 8).map((word, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSearchQuery(word)}
-                      className="px-2 py-1 bg-blue-800 hover:bg-blue-700 rounded text-xs"
-                    >
-                      {word}
-                    </button>
-                  ))}
                 </div>
               </div>
             </div>

@@ -1538,156 +1538,168 @@ export default function MobileMessageApp() {
                         ...prev, 
                         emotions: { ...prev.emotions, gratitude: !prev.emotions.gratitude }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.gratitude 
-                          ? "bg-green-600 text-white shadow-lg" 
+                          ? "bg-green-600 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Gratitude: ${emotionCounts.gratitude} messages`}
                     >
-                      🙏 Gratitude ({emotionCounts.gratitude})
+                      🙏 {emotionCounts.gratitude}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, sexiness: !prev.emotions.sexiness }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.sexiness 
-                          ? "bg-pink-600 text-white shadow-lg" 
+                          ? "bg-pink-600 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Sexiness: ${emotionCounts.sexiness} messages`}
                     >
-                      🔥 Sexiness ({emotionCounts.sexiness})
+                      🔥 {emotionCounts.sexiness}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, flirtation: !prev.emotions.flirtation }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.flirtation 
-                          ? "bg-purple-600 text-white shadow-lg" 
+                          ? "bg-purple-600 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Flirtation: ${emotionCounts.flirtation} messages`}
                     >
-                      😉 Flirtation ({emotionCounts.flirtation})
+                      😉 {emotionCounts.flirtation}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, intimacy: !prev.emotions.intimacy }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.intimacy 
-                          ? "bg-red-600 text-white shadow-lg" 
+                          ? "bg-red-600 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Intimacy: ${emotionCounts.intimacy} messages`}
                     >
-                      💕 Intimacy ({emotionCounts.intimacy})
+                      💕 {emotionCounts.intimacy}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, jealousy: !prev.emotions.jealousy }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.jealousy 
-                          ? "bg-yellow-600 text-white shadow-lg" 
+                          ? "bg-yellow-600 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Jealousy: ${emotionCounts.jealousy} messages`}
                     >
-                      😤 Jealousy ({emotionCounts.jealousy})
+                      😤 {emotionCounts.jealousy}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, nostalgia: !prev.emotions.nostalgia }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.nostalgia 
-                          ? "bg-teal-600 text-white shadow-lg" 
+                          ? "bg-teal-600 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Nostalgia: ${emotionCounts.nostalgia} messages`}
                     >
-                      😌 Nostalgia ({emotionCounts.nostalgia})
+                      😌 {emotionCounts.nostalgia}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, surprise: !prev.emotions.surprise }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.surprise 
-                          ? "bg-orange-600 text-white shadow-lg" 
+                          ? "bg-orange-600 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Surprise: ${emotionCounts.surprise} messages`}
                     >
-                      😲 Surprise ({emotionCounts.surprise})
+                      😲 {emotionCounts.surprise}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, confusion: !prev.emotions.confusion }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.confusion 
-                          ? "bg-gray-500 text-white shadow-lg" 
+                          ? "bg-gray-500 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Confusion: ${emotionCounts.confusion} messages`}
                     >
-                      🤔 Confusion ({emotionCounts.confusion})
+                      🤔 {emotionCounts.confusion}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, relief: !prev.emotions.relief }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.relief 
-                          ? "bg-green-500 text-white shadow-lg" 
+                          ? "bg-green-500 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Relief: ${emotionCounts.relief} messages`}
                     >
-                      😌 Relief ({emotionCounts.relief})
+                      😌 {emotionCounts.relief}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, longing: !prev.emotions.longing }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.longing 
-                          ? "bg-purple-500 text-white shadow-lg" 
+                          ? "bg-purple-500 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Longing: ${emotionCounts.longing} messages`}
                     >
-                      💔 Longing ({emotionCounts.longing})
+                      💔 {emotionCounts.longing}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, playfulness: !prev.emotions.playfulness }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.playfulness 
-                          ? "bg-cyan-600 text-white shadow-lg" 
+                          ? "bg-cyan-600 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Playfulness: ${emotionCounts.playfulness} messages`}
                     >
-                      😄 Playfulness ({emotionCounts.playfulness})
+                      😄 {emotionCounts.playfulness}
                     </button>
                     <button
                       onClick={() => setSearchFilters(prev => ({ 
                         ...prev, 
                         emotions: { ...prev.emotions, neutral: !prev.emotions.neutral }
                       }))}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                         searchFilters.emotions.neutral 
-                          ? "bg-gray-500 text-white shadow-lg" 
+                          ? "bg-gray-500 text-white" 
                           : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                       }`}
+                      title={`Neutral: ${emotionCounts.neutral} messages`}
                     >
-                      😐 Neutral ({emotionCounts.neutral})
+                      😐 {emotionCounts.neutral}
                     </button>
                   </div>
                 </div>

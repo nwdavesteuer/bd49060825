@@ -198,14 +198,14 @@ function MessageBubble({
     >
       {displayText}
       
-      {/* Emotion indicator */}
-      {hasEmotionData && message.emotion_confidence > 0.1 && (
-        <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+      {/* Emotion indicator - show for any emotion with >5% confidence */}
+      {hasEmotionData && message.emotion_confidence > 0.05 && (
+        <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 opacity-60 group-hover:opacity-100 transition-opacity duration-200" />
       )}
       
-      {/* Emotion badge for high confidence emotions */}
-      {hasEmotionData && message.emotion_confidence > 0.2 && message.primary_emotion !== 'neutral' && (
-        <div className="absolute -bottom-1 -right-1 px-1.5 py-0.5 text-xs rounded-full bg-purple-600 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      {/* Emotion badge for any emotion with >10% confidence */}
+      {hasEmotionData && message.emotion_confidence > 0.1 && (
+        <div className="absolute -bottom-1 -right-1 px-1.5 py-0.5 text-xs rounded-full bg-purple-600 text-white opacity-80 group-hover:opacity-100 transition-opacity duration-200">
           {message.primary_emotion}
         </div>
       )}
@@ -306,7 +306,8 @@ export default function MobileMessageApp() {
       confusion: false,
       relief: false,
       longing: false,
-      playfulness: false
+      playfulness: false,
+      neutral: false
     }
   })
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
@@ -359,7 +360,8 @@ export default function MobileMessageApp() {
       confusion: 0,
       relief: 0,
       longing: 0,
-      playfulness: 0
+      playfulness: 0,
+      neutral: 0
     }
 
     let totalMessages = 0
@@ -367,8 +369,13 @@ export default function MobileMessageApp() {
     let neutralCount = 0
 
     // Only process if we have messages and they're not still loading
-    if (messages.length === 0 || loading) {
-      console.log('🎭 Skipping emotion count - no messages or still loading')
+    if (messages.length === 0) {
+      console.log('🎭 Skipping emotion count - no messages')
+      return counts
+    }
+    
+    if (loading) {
+      console.log('🎭 Skipping emotion count - still loading')
       return counts
     }
     
@@ -406,11 +413,15 @@ export default function MobileMessageApp() {
       if (msg.primary_emotion) {
         if (msg.primary_emotion === 'neutral') {
           neutralCount++
+          // Count neutral as a valid emotion for filtering
+          messagesWithEmotions++
         } else if (msg.primary_emotion in counts) {
           counts[msg.primary_emotion as keyof typeof counts]++
           messagesWithEmotions++
         } else {
           console.log(`⚠️ Unknown emotion: ${msg.primary_emotion}`)
+          // Count unknown emotions too
+          messagesWithEmotions++
         }
       } else {
         console.log(`⚠️ No primary_emotion for message ${msg.message_id}`)
@@ -454,8 +465,14 @@ export default function MobileMessageApp() {
     })
 
     console.log('🎭 Final emotion counts:', counts)
+    console.log('🎭 Summary:', {
+      totalMessages,
+      messagesWithEmotions,
+      neutralCount,
+      nonNeutralCount: messagesWithEmotions - neutralCount
+    })
     return counts
-  }, [messages])
+  }, [messages, loading])
 
   // Generate search suggestions based on message content
   const generateSearchSuggestions = useMemo(() => {
@@ -841,6 +858,14 @@ export default function MobileMessageApp() {
                 year: year,
                 month: messageDate.getMonth() + 1,
                 day: messageDate.getDate(),
+                // Emotion analysis fields
+                primary_emotion: msg.primary_emotion,
+                emotion_confidence: msg.emotion_confidence,
+                secondary_emotions: msg.secondary_emotions,
+                emotion_intensity: msg.emotion_intensity,
+                emotion_context: msg.emotion_context,
+                emotion_triggers: msg.emotion_triggers,
+                relationship_impact: msg.relationship_impact,
               })
             } else {
               console.log(`⚠️ Skipping message with invalid date: ${msg.readable_date}`)
@@ -1653,6 +1678,19 @@ export default function MobileMessageApp() {
                     >
                       😄 Playfulness ({emotionCounts.playfulness})
                     </button>
+                    <button
+                      onClick={() => setSearchFilters(prev => ({ 
+                        ...prev, 
+                        emotions: { ...prev.emotions, neutral: !prev.emotions.neutral }
+                      }))}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        searchFilters.emotions.neutral 
+                          ? "bg-gray-500 text-white shadow-lg" 
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      😐 Neutral ({emotionCounts.neutral})
+                    </button>
                   </div>
                 </div>
 
@@ -1685,7 +1723,8 @@ export default function MobileMessageApp() {
                         confusion: false,
                         relief: false,
                         longing: false,
-                        playfulness: false
+                        playfulness: false,
+                        neutral: false
                       }
                     })}
                     className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs text-gray-300 transition-colors"

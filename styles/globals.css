@@ -88,3 +88,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Fix for unwanted pseudo-element content display */
+*::before,
+*::after {
+  content: '' !important;
+}
+
+/* Ensure no numeric content is displayed via CSS */
+[class*="message"]::before,
+[class*="message"]::after,
+[class*="bubble"]::before,
+[class*="bubble"]::after {
+  content: '' !important;
+  display: none !important;
+}

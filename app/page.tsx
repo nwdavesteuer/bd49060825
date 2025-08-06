@@ -1,24 +1,24 @@
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MessageSquare, Heart, Calendar, Database, Smartphone, BarChart3, Settings, Brain } from "lucide-react"
+import { MessageSquare, Heart, BarChart3, Brain, Camera, Volume2 } from "lucide-react"
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto py-12 px-4">
+      <div className="container mx-auto py-8 px-4 sm:py-12">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Love Letters & Message Timeline</h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <div className="text-center mb-8 sm:mb-12">
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Love Letters & Message Timeline</h1>
+            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
               Transform your text messages into cinematic love letters and explore your conversation history through
               beautiful visualizations and timelines.
             </p>
           </div>
 
           {/* Main Navigation Cards */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-12">
             {/* Messages Timeline */}
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>
@@ -51,6 +51,42 @@ export default function HomePage() {
                 </p>
                 <Link href="/love-letters">
                   <Button className="w-full">View Love Letters</Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* 2016 Love Notes */}
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Heart className="h-5 w-5 text-pink-600" />
+                  2016 Love Notes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600 mb-4">
+                  Listen to 42 carefully selected love notes from 2016, converted to audio using David's voice.
+                </p>
+                <Link href="/love-notes-2016">
+                  <Button className="w-full">Listen to 2016 Notes</Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Audio Comparison */}
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Volume2 className="h-5 w-5 text-purple-600" />
+                  Audio Comparison
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600 mb-4">
+                  Compare 2015 vs 2016 voice quality and text completeness side by side.
+                </p>
+                <Link href="/audio-comparison">
+                  <Button className="w-full">Compare Audio Quality</Button>
                 </Link>
               </CardContent>
             </Card>
@@ -90,33 +126,39 @@ export default function HomePage() {
                 </Link>
               </CardContent>
             </Card>
+
+            {/* Photo Timeline */}
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Camera className="h-5 w-5 text-green-600" />
+                  Photo Timeline
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600 mb-4">
+                  Visual memories alongside your messages. Upload photos or connect to iCloud for a complete timeline.
+                </p>
+                <Link href="/photo-timeline">
+                  <Button className="w-full">View Photos</Button>
+                </Link>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Tools & Utilities */}
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Tools & Utilities</h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Database Diagnostic */}
-              <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="pt-4">
-                  <div className="text-center">
-                    <Database className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                    <h3 className="font-medium mb-2">Database Diagnostic</h3>
-                    <Link href="/diagnostic">
-                      <Button variant="outline" size="sm">
-                        Run Tests
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-
+          {/* Additional Features */}
+          <div className="mb-8 sm:mb-12">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">Additional Features</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Word Evolution */}
               <Card className="hover:shadow-md transition-shadow">
                 <CardContent className="pt-4">
                   <div className="text-center">
                     <BarChart3 className="h-8 w-8 text-green-600 mx-auto mb-2" />
                     <h3 className="font-medium mb-2">Word Evolution</h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Track how your vocabulary and communication patterns have evolved over time.
+                    </p>
                     <Link href="/word-evolution">
                       <Button variant="outline" size="sm">
                         View Evolution
@@ -125,24 +167,26 @@ export default function HomePage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Visual Heatmap */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardContent className="pt-4">
+                  <div className="text-center">
+                    <BarChart3 className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                    <h3 className="font-medium mb-2">Visual Heatmap</h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      See your messaging patterns visualized in an interactive heatmap.
+                    </p>
+                    <Link href="/visual-heatmap">
+                      <Button variant="outline" size="sm">
+                        View Heatmap
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
-
-          {/* Status */}
-          <Card className="bg-white/50 backdrop-blur">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <h3 className="font-medium text-gray-900 mb-2">Current Data Source</h3>
-                <div className="flex items-center justify-center gap-2">
-                  <Database className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-gray-600">fulldata_set table</span>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  All features are now using your complete dataset as the source of truth
-                </p>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>

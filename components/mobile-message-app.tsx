@@ -5,17 +5,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Search,
-  Plus,
   Menu,
-  ChevronUp,
-  ChevronDown,
   MessageCircle,
-  Bell,
-  Calendar,
-  AlertTriangle,
-  Database,
+  Heart,
 } from "lucide-react"
 import { supabase, type Message, TABLE_NAME } from "@/lib/supabase"
+import DirectAudioPlayer from "./direct-audio-player"
+import EnhancedMessageAudioControl from "./enhanced-message-audio-control"
+import { getAvailableAudioFiles, getAudioFilename, checkMultipleAudioFiles } from "@/lib/audio-file-manager"
+import { useAudioStore } from "@/lib/audio-state-manager"
 
 interface MessageGroup {
   id: string
@@ -32,38 +30,7 @@ interface YearData {
   isExpanded: boolean
 }
 
-interface DebugInfo {
-  totalRawMessages: number
-  sampleRawMessages: any[]
-  dateParsingResults: any[]
-  yearDistribution: Record<number, number>
-  filteringResults: {
-    beforeCutoff: number
-    afterCutoff: number
-    cutoffDate: string
-  }
-  supabaseQueryInfo: {
-    queryExecuted: string
-    limitApplied: boolean
-    orderBy: string
-    pagesFetched: number
-    totalRecordsExpected: number
-  }
-  year2016Analysis: {
-    found: boolean
-    count: number
-    sampleMessages: any[]
-    dateRange: string
-    rawQuery: string
-    error?: string
-  }
-  dateRangeAnalysis: {
-    earliest: string
-    latest: string
-    totalSpan: string
-    missingYears: number[]
-  }
-}
+
 
 // Optimized date parsing function
 function parseMessageDate(dateString: string): { date: Date; year: number; isValid: boolean } {
@@ -143,110 +110,175 @@ function MessageBubble({
   message,
   isFromMe,
   position,
+  searchMode,
+  showLoveNotes,
+  isPlaying,
+  onPlay,
+  onPause,
+  onEnded,
 }: {
   message: Message
   isFromMe: boolean
   position: "single" | "first" | "middle" | "last"
+  searchMode?: "all" | "year" | "love"
+  showLoveNotes?: boolean
+  isPlaying?: boolean
+  onPlay?: () => void
+  onPause?: () => void
+  onEnded?: () => void
 }) {
-  const baseClasses = "max-w-[75%] px-4 py-2 text-sm leading-relaxed break-words cursor-pointer"
+  const [audioFilename, setAudioFilename] = useState<string | null>(null)
+  const [hasAudio, setHasAudio] = useState(false)
+
+  // Load audio filename asynchronously
+  useEffect(() => {
+    const loadAudioFilename = async () => {
+      console.log(`🔍 Audio check for message ${message.message_id}: showLoveNotes=${showLoveNotes}, is_from_me=${message.is_from_me} (type: ${typeof message.is_from_me}), check=${String(message.is_from_me) === "1"}`)
+      if (showLoveNotes && String(message.is_from_me) === "1") {
+        try {
+          const messageYear = message.year || new Date(message.readable_date).getFullYear()
+          const messageId = String(message.message_id)
+          console.log(`🎵 Loading audio for message:`, {
+            raw_message_id: message.message_id,
+            string_message_id: messageId,
+            year: messageYear,
+            text_preview: message.text?.substring(0, 50)
+          })
+          const filename = await getAudioFilename(messageId, messageYear)
+          
+          // Check if the file exists using the new consistent naming pattern
+          console.log(`🔍 Checking for audio file: /audio/love-notes/${filename}`)
+          
+          // Try a simple HEAD request without cache busting first
+          try {
+            const response = await fetch(`/audio/love-notes/${filename}`, { 
+              method: 'HEAD'
+            })
+            const exists = response.ok
+            
+            if (exists) {
+              console.log(`✅ Audio file found: ${filename}`)
+              setAudioFilename(filename)
+              setHasAudio(true)
+            } else {
+              console.log(`❌ Audio file not found: ${filename} (status: ${response.status})`)
+              setAudioFilename(null)
+              setHasAudio(false)
+            }
+          } catch (fetchError) {
+            console.error(`❌ Error checking audio file ${filename}:`, fetchError)
+            setAudioFilename(null)
+            setHasAudio(false)
+          }
+        } catch (error) {
+          console.error('Error loading audio filename:', error)
+          setHasAudio(false)
+        }
+      } else {
+        setHasAudio(false)
+      }
+    }
+
+    loadAudioFilename()
+  }, [message, showLoveNotes])
 
   const getCornerClasses = () => {
-    if (isFromMe) {
-      switch (position) {
-        case "single":
-          return "rounded-2xl"
-        case "first":
-          return "rounded-2xl rounded-br-md"
-        case "middle":
-          return "rounded-l-2xl rounded-r-md"
-        case "last":
-          return "rounded-2xl rounded-tr-md"
-      }
-    } else {
-      switch (position) {
-        case "single":
-          return "rounded-2xl"
-        case "first":
-          return "rounded-2xl rounded-bl-md"
-        case "middle":
-          return "rounded-r-2xl rounded-l-md"
-        case "last":
-          return "rounded-2xl rounded-tl-md"
-      }
-    }
+    if (position === "single") return "rounded-2xl"
+    if (position === "first") return isFromMe ? "rounded-2xl rounded-br-md" : "rounded-2xl rounded-bl-md"
+    if (position === "last") return isFromMe ? "rounded-2xl rounded-tr-md" : "rounded-2xl rounded-tl-md"
+    return isFromMe ? "rounded-2xl rounded-r-md" : "rounded-2xl rounded-l-md"
   }
 
-  const colorClasses = isFromMe ? "bg-blue-600 text-white ml-auto" : "bg-gray-700 text-gray-100 mr-auto"
-
-  // Show placeholder for empty messages
-  const displayText = message.text && message.text.trim() !== '' 
-    ? message.text 
-    : message.has_attachments === 1 || message.has_attachments === "1"
-      ? "[Attachment]"
-      : "[Message]"
-
-  // Use pre-analyzed emotion data
-  const hasEmotionData = message.primary_emotion && message.emotion_confidence
-  const emotionTooltip = hasEmotionData 
-    ? `Emotion: ${message.primary_emotion} (${Math.round(message.emotion_confidence * 100)}% confidence)`
-    : undefined
-  
-  // Get subtle emotion color tint
   const getEmotionTint = () => {
-    if (!hasEmotionData || message.emotion_confidence < 0.1) return ''
-    
-    const emotion = message.primary_emotion?.toLowerCase()
-    const intensity = Math.min(message.emotion_confidence * 2, 0.3) // Max 30% opacity
-    
-    const tints: { [key: string]: string } = {
-      'love': `border-l-4 border-l-red-400`,
-      'joy': `border-l-4 border-l-yellow-400`,
-      'sadness': `border-l-4 border-l-blue-400`,
-      'anger': `border-l-4 border-l-red-500`,
-      'fear': `border-l-4 border-l-purple-400`,
-      'surprise': `border-l-4 border-l-orange-400`,
-      'disgust': `border-l-4 border-l-green-400`,
-      'neutral': `border-l-4 border-l-gray-400`,
-      'relief': `border-l-4 border-l-green-300`,
-      'excitement': `border-l-4 border-l-yellow-300`,
-      'gratitude': `border-l-4 border-l-green-200`,
-      'sweet': `border-l-4 border-l-pink-300`,
-      'support': `border-l-4 border-l-blue-300`,
-      'intimacy': `border-l-4 border-l-red-300`,
-      'flirtation': `border-l-4 border-l-pink-400`,
-      'playfulness': `border-l-4 border-l-cyan-300`,
-      'nostalgia': `border-l-4 border-l-teal-300`,
-      'longing': `border-l-4 border-l-purple-300`,
-      'confusion': `border-l-4 border-l-gray-500`,
-      'anxiety': `border-l-4 border-l-orange-500`,
-      'fights': `border-l-4 border-l-red-600`,
-      'sexiness': `border-l-4 border-l-pink-500`,
-      'jealousy': `border-l-4 border-l-yellow-500`,
-      'celebration': `border-l-4 border-l-purple-400`,
-      'deepTalks': `border-l-4 border-l-indigo-400`
+    if (!message.primary_emotion || !message.emotion_confidence || message.emotion_confidence < 0.3) {
+      return ""
     }
-    
-    return tints[emotion] || ''
+
+    const emotion = message.primary_emotion.toLowerCase()
+    const confidence = message.emotion_confidence
+
+    // Base colors for different emotions
+    const emotionColors = {
+      joy: "from-yellow-400 to-orange-400",
+      love: "from-pink-400 to-red-400",
+      sadness: "from-blue-400 to-indigo-400",
+      anger: "from-red-500 to-pink-500",
+      fear: "from-purple-400 to-indigo-400",
+      surprise: "from-yellow-300 to-orange-300",
+      disgust: "from-green-400 to-emerald-400",
+      neutral: "from-gray-400 to-gray-500"
+    }
+
+    const colorClass = emotionColors[emotion as keyof typeof emotionColors] || emotionColors.neutral
+    const opacity = Math.min(confidence * 0.3, 0.3) // Cap opacity at 0.3
+
+    return `bg-gradient-to-r ${colorClass} bg-opacity-${Math.round(opacity * 100)}`
   }
-  
+
+  const hasEmotionData = message.primary_emotion && message.emotion_confidence && message.emotion_confidence > 0.2
+  const isLoveNote = showLoveNotes && String(message.is_from_me) === "1" && hasAudio
+
   return (
-    <div 
-      className={`${baseClasses} ${colorClasses} ${getCornerClasses()} ${getEmotionTint()} group relative transition-all duration-200`}
-      title={emotionTooltip}
-    >
-      {displayText}
+    <div className={`group relative ${isFromMe ? "ml-auto" : "mr-auto"} max-w-[85%] md:max-w-[70%]`}>
+      <div
+        className={`
+          px-4 py-2 md:px-6 md:py-3 
+          ${getCornerClasses()}
+          ${isFromMe 
+            ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white" 
+            : "bg-gray-700 text-gray-100"
+          }
+          ${getEmotionTint()}
+          shadow-lg
+          transition-all duration-200
+          hover:shadow-xl
+          ${searchMode === "love" && isLoveNote ? "ring-2 ring-pink-400 ring-opacity-50" : ""}
+        `}
+      >
+        {/* Message Text */}
+        {message.text && message.text !== "0" && (
+          <div className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
+            {message.text}
+          </div>
+        )}
+
+        {/* Audio Control for Love Notes */}
+        {isLoveNote && audioFilename && (
+          <EnhancedMessageAudioControl
+            audioFile={audioFilename}
+            messageId={String(message.message_id)}
+            year={message.year || new Date(message.readable_date).getFullYear()}
+          />
+        )}
+      </div>
       
       {/* Subtle emotion indicator - only on hover for high confidence */}
-      {hasEmotionData && message.emotion_confidence > 0.2 && message.primary_emotion !== 'neutral' && (
+      {hasEmotionData && (message.emotion_confidence || 0) > 0.2 && message.primary_emotion !== 'neutral' && (
         <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
       )}
     </div>
   )
 }
 
-function MessageGroup({ group }: { group: MessageGroup }) {
+function MessageGroup({ 
+  group, 
+  searchMode, 
+  showLoveNotes,
+  isPlaying,
+  onPlay,
+  onPause,
+  onEnded
+}: { 
+  group: MessageGroup; 
+  searchMode?: "all" | "year" | "love"
+  showLoveNotes?: boolean
+  isPlaying?: boolean
+  onPlay?: () => void
+  onPause?: () => void
+  onEnded?: () => void
+}) {
   return (
-    <div className={`flex flex-col gap-0.5 mb-4 ${group.isFromMe ? "items-end" : "items-start"}`}>
+    <div className={`flex flex-col gap-0.5 mb-2 md:mb-4 ${group.isFromMe ? "items-end" : "items-start"}`}>
       {group.messages.map((message, index) => {
         let position: "single" | "first" | "middle" | "last" = "single"
 
@@ -258,10 +290,16 @@ function MessageGroup({ group }: { group: MessageGroup }) {
 
         return (
           <MessageBubble
-            key={message.message_id || index}
+            key={message.message_id ? `msg-${message.message_id}` : `msg-index-${index}`}
             message={message}
             isFromMe={group.isFromMe}
             position={position}
+            searchMode={searchMode}
+            showLoveNotes={showLoveNotes}
+            isPlaying={isPlaying}
+            onPlay={onPlay}
+            onPause={onPause}
+            onEnded={onEnded}
           />
         )
       })}
@@ -292,7 +330,7 @@ function DayHeader({ date }: { date: Date }) {
   }
 
   return (
-    <div className="flex justify-center my-6">
+    <div className="flex justify-center my-4 md:my-6">
       <div className="bg-gray-800 px-3 py-1 rounded-full text-xs text-gray-300 font-medium">{dateString}</div>
     </div>
   )
@@ -304,12 +342,10 @@ export default function MobileMessageApp() {
   const [error, setError] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchMode, setSearchMode] = useState<"all" | "year">("all")
+  const [searchMode, setSearchMode] = useState<"all" | "year" | "love">("all")
   const [selectedYear, setSelectedYear] = useState<number | null>(2015)
   const [yearData, setYearData] = useState<YearData[]>([])
   const [messagesExpanded, setMessagesExpanded] = useState(true)
-  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null)
-  const [showDebug, setShowDebug] = useState(false)
   const [searchFilters, setSearchFilters] = useState({
     sender: "",
     dateRange: "",
@@ -344,6 +380,25 @@ export default function MobileMessageApp() {
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
   const [showSearchPanel, setShowSearchPanel] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
+  
+  // Love Notes Audio State
+  const [showLoveNotes, setShowLoveNotes] = useState(false)
+  const [showContext, setShowContext] = useState(false)
+  
+  // Use global audio state
+  const {
+    isPlaying,
+    currentIndex,
+    autoPlay,
+    audioFiles,
+    setAudioFiles,
+    play,
+    pause,
+    next,
+    previous,
+    setAutoPlay,
+    reset
+  } = useAudioStore()
   
   // Pre-calculated insights from the full dataset
   const insights = {
@@ -436,7 +491,7 @@ export default function MobileMessageApp() {
           emotion_confidence: msg.emotion_confidence,
           has_primary: !!msg.primary_emotion,
           is_neutral: msg.primary_emotion === 'neutral',
-          in_counts: msg.primary_emotion in counts
+          in_counts: (msg.primary_emotion || '') in counts
         })
       }
       
@@ -543,10 +598,6 @@ export default function MobileMessageApp() {
         setError(null)
         setLoadingProgress(0)
 
-        console.log("=== COMPREHENSIVE 2016 MESSAGE HUNT ===")
-        console.log("Fetching from table:", TABLE_NAME)
-        console.log("Timestamp:", new Date().toISOString())
-
         // Start the loading animation
         setTimeout(() => setLoadingProgress(1), 500)
         setTimeout(() => setLoadingProgress(2), 1500)
@@ -556,8 +607,7 @@ export default function MobileMessageApp() {
         setTimeout(() => setLoadingProgress(6), 5500)
         setTimeout(() => setLoadingProgress(7), 6500)
 
-        // Step 1: Get exact count from database
-        console.log("Step 1: Getting exact count...")
+        // Get exact count from database
         const { count: exactCount, error: countError } = await supabase
           .from(TABLE_NAME)
           .select("*", { count: "exact", head: true })
@@ -567,136 +617,14 @@ export default function MobileMessageApp() {
           throw countError
         }
 
-        console.log("✅ EXACT COUNT FROM DATABASE:", exactCount)
+        console.log("✅ Total messages in database:", exactCount)
 
-        // Step 2: MULTIPLE 2016 QUERIES TO HUNT DOWN THE DATA
-        console.log("Step 2: HUNTING FOR 2016 DATA WITH MULTIPLE QUERIES...")
-
-        // Query 1: Exact 2016 year match
-        console.log("🔍 Query 1: Exact 2016 year match...")
-        const { data: year2016Exact, error: error2016Exact } = await supabase
-          .from(TABLE_NAME)
-          .select("*")
-          .gte("readable_date", "2016-01-01")
-          .lt("readable_date", "2017-01-01")
-          .order("readable_date", { ascending: true })
-
-        console.log("Query 1 result:", year2016Exact?.length || 0, "messages")
-        if (year2016Exact && year2016Exact.length > 0) {
-          console.log("✅ FOUND 2016 DATA WITH EXACT QUERY!")
-          console.log("First 2016 message:", year2016Exact[0])
-          console.log("Last 2016 message:", year2016Exact[year2016Exact.length - 1])
-        }
-
-        // Query 2: Contains "2016" in readable_date
-        console.log("🔍 Query 2: Contains '2016' in readable_date...")
-        const { data: year2016Contains, error: error2016Contains } = await supabase
-          .from(TABLE_NAME)
-          .select("*")
-          .ilike("readable_date", "%2016%")
-          .order("readable_date", { ascending: true })
-
-        console.log("Query 2 result:", year2016Contains?.length || 0, "messages")
-        if (year2016Contains && year2016Contains.length > 0) {
-          console.log("✅ FOUND 2016 DATA WITH CONTAINS QUERY!")
-          console.log("Sample contains results:", year2016Contains.slice(0, 3))
-        }
-
-        // Query 3: Get date range to see what years exist
-        console.log("🔍 Query 3: Getting date range...")
-        const { data: dateRangeData, error: dateRangeError } = await supabase
-          .from(TABLE_NAME)
-          .select("readable_date")
-          .order("readable_date", { ascending: true })
-
-        let dateRangeAnalysis = {
-          earliest: "Unknown",
-          latest: "Unknown",
-          totalSpan: "Unknown",
-          missingYears: [] as number[],
-        }
-
-        if (dateRangeData && dateRangeData.length > 0) {
-          const validDates = dateRangeData
-            .map((d) => new Date(d.readable_date))
-            .filter((d) => !isNaN(d.getTime()))
-            .sort((a, b) => a.getTime() - b.getTime())
-
-          if (validDates.length > 0) {
-            const earliest = validDates[0]
-            const latest = validDates[validDates.length - 1]
-
-            dateRangeAnalysis = {
-              earliest: earliest.toISOString().substring(0, 10),
-              latest: latest.toISOString().substring(0, 10),
-              totalSpan: `${latest.getFullYear() - earliest.getFullYear()} years`,
-              missingYears: [],
-            }
-
-            // Check for missing years
-            const startYear = earliest.getFullYear()
-            const endYear = latest.getFullYear()
-            const existingYears = new Set(validDates.map((d) => d.getFullYear()))
-
-            for (let year = startYear; year <= endYear; year++) {
-              if (!existingYears.has(year)) {
-                dateRangeAnalysis.missingYears.push(year)
-              }
-            }
-
-            console.log("✅ DATE RANGE ANALYSIS:")
-            console.log("- Earliest:", dateRangeAnalysis.earliest)
-            console.log("- Latest:", dateRangeAnalysis.latest)
-            console.log("- Span:", dateRangeAnalysis.totalSpan)
-            console.log("- Missing years:", dateRangeAnalysis.missingYears)
-            console.log("- 2016 exists:", existingYears.has(2016) ? "YES" : "NO")
-          }
-        }
-
-        // Query 4: Sample messages around 2016 timeframe
-        console.log("🔍 Query 4: Messages around 2016 timeframe...")
-        const { data: around2016, error: errorAround2016 } = await supabase
-          .from(TABLE_NAME)
-          .select("*")
-          .gte("readable_date", "2015-06-01")
-          .lt("readable_date", "2017-06-01")
-          .order("readable_date", { ascending: true })
-
-        console.log("Query 4 result:", around2016?.length || 0, "messages around 2016")
-        if (around2016 && around2016.length > 0) {
-          const yearCounts: Record<number, number> = {}
-          around2016.forEach((msg) => {
-            const year = new Date(msg.readable_date).getFullYear()
-            if (!isNaN(year)) {
-              yearCounts[year] = (yearCounts[year] || 0) + 1
-            }
-          })
-          console.log("Year distribution around 2016:", yearCounts)
-        }
-
-        // Consolidate 2016 analysis
-        const year2016Analysis = {
-          found: (year2016Exact?.length || 0) > 0 || (year2016Contains?.length || 0) > 0,
-          count: Math.max(year2016Exact?.length || 0, year2016Contains?.length || 0),
-          sampleMessages: year2016Exact?.slice(0, 3) || year2016Contains?.slice(0, 3) || [],
-          dateRange:
-            year2016Exact && year2016Exact.length > 0
-              ? `${year2016Exact[0].readable_date} to ${year2016Exact[year2016Exact.length - 1].readable_date}`
-              : "No 2016 data found",
-          rawQuery: "Multiple queries executed",
-          error: error2016Exact?.message || error2016Contains?.message,
-        }
-
-        console.log("🎯 FINAL 2016 ANALYSIS:", year2016Analysis)
-
-        // Step 3: Get ALL messages with pagination to handle large datasets
-        console.log("Step 3: Fetching ALL messages with pagination...")
+        // Fetch all messages with pagination to handle large datasets
         const startTime = Date.now()
         
         let allData: any[] = []
         let hasMore = true
         let page = 0
-        let totalPages = 0
         const pageSize = 1000
         
         while (hasMore) {
@@ -713,27 +641,14 @@ export default function MobileMessageApp() {
           }
           
           if (pageData && pageData.length > 0) {
-            // Debug the first record to see what fields are actually returned
-            if (page === 0 && pageData.length > 0) {
-              console.log('🔍 First page data sample:', {
-                message_id: pageData[0].message_id,
-                text: pageData[0].text?.substring(0, 30),
-                has_primary_emotion: 'primary_emotion' in pageData[0],
-                primary_emotion: pageData[0].primary_emotion,
-                all_keys: Object.keys(pageData[0]).filter(key => key.includes('emotion'))
-              })
-            }
-            
             allData = allData.concat(pageData)
             console.log(`✅ Page ${page + 1} loaded: ${pageData.length} records`)
             page++
-            totalPages = page
           } else {
             hasMore = false
-            totalPages = page
           }
           
-          // Safety check to prevent infinite loops - increased to handle 50,000+ records
+          // Safety check to prevent infinite loops
           if (page > 50) {
             console.warn("⚠️ Stopping pagination after 50 pages to prevent infinite loop")
             hasMore = false
@@ -741,127 +656,40 @@ export default function MobileMessageApp() {
         }
         
         const data = allData
-
         const queryTime = Date.now() - startTime
         console.log(`✅ Main query completed in ${queryTime}ms`)
-
-        // Note: fetchError is handled inside the while loop above
-
-        console.log("✅ RAW DATA RECEIVED:")
-        console.log("- Expected count:", exactCount)
-        console.log("- Actual received:", data?.length)
-        console.log("- Match:", exactCount === data?.length ? "✅ YES" : "❌ NO")
-        
-        // Debug emotion data
-        if (data && data.length > 0) {
-          console.log("🔍 Checking first 3 messages for emotion fields:")
-          data.slice(0, 3).forEach((msg, index) => {
-            console.log(`   Message ${index + 1}:`, {
-              id: msg.message_id,
-              text: msg.text?.substring(0, 30),
-              has_primary_emotion: 'primary_emotion' in msg,
-              primary_emotion: msg.primary_emotion,
-              emotion_confidence: msg.emotion_confidence,
-              all_keys: Object.keys(msg).filter(key => key.includes('emotion'))
-            })
-          })
-          
-          const sampleWithEmotion = data.find(msg => msg.primary_emotion && msg.primary_emotion !== 'neutral')
-          if (sampleWithEmotion) {
-            console.log("🎭 Sample message with emotion:")
-            console.log("   Text:", sampleWithEmotion.text?.substring(0, 50))
-            console.log("   Primary emotion:", sampleWithEmotion.primary_emotion)
-            console.log("   Confidence:", sampleWithEmotion.emotion_confidence)
-          } else {
-            console.log("❌ No messages with emotions found in fetched data")
-          }
-          
-          const emotionStats = {}
-          data.forEach(msg => {
-            if (msg.primary_emotion) {
-              emotionStats[msg.primary_emotion] = (emotionStats[msg.primary_emotion] || 0) + 1
-            }
-          })
-          console.log("📊 Emotion distribution in fetched data:", emotionStats)
-        }
 
         if (!data || data.length === 0) {
           setError("No messages found in the database")
           return
         }
 
-
-
-        // Step 4: Analyze ALL dates to find 2016
-        console.log("=== ANALYZING ALL DATES FOR 2016 ===")
-        const dateParsingResults: any[] = []
-        const yearDistribution: Record<number, number> = {}
-        let validDates = 0
-        let invalidDates = 0
-        let found2016InParsing = 0
-
-        data.forEach((msg: any, index: number) => {
-          try {
-            const originalDate = msg.readable_date
-            if (!originalDate) {
-              invalidDates++
-              return
-            }
-
-            const parsedDate = new Date(originalDate)
-            const year = parsedDate.getFullYear()
-            // More lenient validation - accept any reasonable date
-            const isValid = !isNaN(parsedDate.getTime()) && year >= 1900 && year <= 2030
-
-            if (isValid) {
-              validDates++
-              yearDistribution[year] = (yearDistribution[year] || 0) + 1
-
-              if (year === 2016) {
-                found2016InParsing++
-                if (found2016InParsing <= 5) {
-                  console.log(`🎯 FOUND 2016 MESSAGE #${found2016InParsing}:`, {
-                    index,
-                    original: originalDate,
-                    parsed: parsedDate.toISOString(),
-                    text: msg.text?.substring(0, 50) + "...",
-                  })
-                }
-              }
-            } else {
-              invalidDates++
-              console.log(`⚠️ Invalid date found: ${originalDate} at index ${index}`)
-            }
-
-            // Store detailed info for first 20 messages
-            if (index < 20) {
-              dateParsingResults.push({
-                index,
-                original: originalDate,
-                parsed: isValid ? parsedDate.toISOString() : "INVALID",
-                year: isValid ? year : "INVALID",
-                isValid,
-              })
-            }
-          } catch (e) {
-            invalidDates++
-            console.log(`⚠️ Date parsing error at index ${index}:`, e)
-          }
-        })
-
-        console.log("✅ DATE PARSING RESULTS:")
-        console.log("- Valid dates:", validDates)
-        console.log("- Invalid dates:", invalidDates)
-        console.log("- 2016 messages found in parsing:", found2016InParsing)
-        console.log("- Year distribution:", yearDistribution)
-
-        // Step 5: Process messages (INCLUDE ALL MESSAGES)
-        console.log("=== MESSAGE PROCESSING (INCLUDING ALL MESSAGES) ===")
+        console.log("✅ Raw data received:", data.length, "messages")
         
+        // Debug: Check first few messages with their IDs
+        console.log("🔍 First 5 messages with IDs:", data.slice(0, 5).map((msg: any) => ({
+          message_id: msg.message_id,
+          text: msg.text?.substring(0, 30),
+          is_from_me: msg.is_from_me,
+          date: msg.readable_date
+        })))
+        
+        // Check if we have the specific audio messages
+        const audioMessageIds = [176274, 176305, 176307, 176312, 176322]
+        const foundAudioMessages = data.filter((msg: any) => audioMessageIds.includes(msg.message_id))
+        console.log(`🎵 Found ${foundAudioMessages.length} messages with audio files out of ${audioMessageIds.length} expected`)
+        if (foundAudioMessages.length > 0) {
+          console.log("🎵 Audio messages found:", foundAudioMessages.map((msg: any) => ({
+            id: msg.message_id,
+            date: msg.readable_date,
+            text: msg.text?.substring(0, 30)
+          })))
+        }
+
+        // Process messages
         const normalizedMessages: Message[] = []
         let processingErrors = 0
 
-        // Optimized message processing with better error handling
         data.forEach((msg: any, index: number) => {
           try {
             // Use optimized date parsing
@@ -883,7 +711,7 @@ export default function MobileMessageApp() {
                 account: msg.account || "",
                 contact_id: msg.contact_id || "",
                 readable_date: msg.readable_date || "",
-                message_id: index,
+                message_id: msg.message_id, // Always use actual message_id from database
                 date: messageDate.toISOString(),
                 message_type: msg.has_attachments && msg.has_attachments !== "0" ? "image" : "text",
                 year: year,
@@ -907,62 +735,22 @@ export default function MobileMessageApp() {
           }
         })
 
-        // Step 6: Final year counts
+        // Calculate year distribution
         const finalYearCounts: { [year: number]: number } = {}
         normalizedMessages.forEach((msg) => {
-          const year = new Date(msg.date).getFullYear()
+          const year = new Date(msg.date || '').getFullYear()
           finalYearCounts[year] = (finalYearCounts[year] || 0) + 1
         })
 
-        console.log("✅ FINAL RESULTS:")
+        console.log("✅ Processing complete:")
         console.log("- Total processed messages:", normalizedMessages.length)
-        console.log("- Final year distribution:", finalYearCounts)
-        console.log("- 2016 in final data:", finalYearCounts[2016] || 0)
-        
-        // Debug: Check for 2022-2025 data
-        console.log("🔍 CHECKING FOR 2022-2025 DATA:")
-        for (let year = 2022; year <= 2025; year++) {
-          const count = finalYearCounts[year] || 0
-          console.log(`- ${year}: ${count} messages`)
-        }
-        
-        // Debug: Check date range of processed messages
-        if (normalizedMessages.length > 0) {
-          const dates = normalizedMessages.map(msg => new Date(msg.date))
-          const earliest = new Date(Math.min(...dates.map(d => d.getTime())))
-          const latest = new Date(Math.max(...dates.map(d => d.getTime())))
-          console.log("📅 PROCESSED MESSAGE DATE RANGE:")
-          console.log("- Earliest:", earliest.toISOString().substring(0, 10))
-          console.log("- Latest:", latest.toISOString().substring(0, 10))
-        }
-
-        // Set debug info
-        setDebugInfo({
-          totalRawMessages: data.length,
-          sampleRawMessages: data.slice(0, 5),
-          dateParsingResults,
-          yearDistribution,
-          filteringResults: {
-            beforeCutoff: 0,
-            afterCutoff: normalizedMessages.length,
-            cutoffDate: "DISABLED",
-          },
-          supabaseQueryInfo: {
-            queryExecuted: `SELECT * FROM ${TABLE_NAME} ORDER BY readable_date ASC (PAGINATED)`,
-            limitApplied: false,
-            orderBy: "readable_date ASC",
-            pagesFetched: totalPages,
-            totalRecordsExpected: exactCount,
-          },
-          year2016Analysis,
-          dateRangeAnalysis,
-        })
+        console.log("- Year distribution:", finalYearCounts)
 
         setMessages(normalizedMessages)
 
         const years = Object.keys(finalYearCounts)
           .map((year) => Number.parseInt(year))
-          .sort((a, b) => a - b) // Changed to ascending order: 2015 first, 2025 last
+          .sort((a, b) => a - b)
           .map((year) => ({
             year,
             count: finalYearCounts[year],
@@ -970,14 +758,6 @@ export default function MobileMessageApp() {
           }))
 
         setYearData(years)
-
-        console.log("=== HUNT COMPLETE ===")
-        if (!finalYearCounts[2016]) {
-          console.log("🚨 2016 MESSAGES NOT FOUND IN FINAL DATA")
-          console.log("Check the debug panel for detailed analysis")
-        } else {
-          console.log("✅ 2016 MESSAGES FOUND:", finalYearCounts[2016])
-        }
       } catch (err: any) {
         console.error("❌ FATAL ERROR:", err)
         setError(`Failed to load messages: ${err.message}`)
@@ -999,6 +779,35 @@ export default function MobileMessageApp() {
         if (msg.year) return msg.year === selectedYear
         const { year } = parseMessageDate(msg.readable_date)
         return year === selectedYear
+      })
+    }
+
+    // Love notes filter
+    if (searchMode === "love") {
+      // Load selected love notes from localStorage
+      const selectedLoveNotes = localStorage.getItem('selectedLoveNotes')
+      if (selectedLoveNotes) {
+        try {
+          const loveNotes = JSON.parse(selectedLoveNotes)
+          const loveNoteIds = new Set(loveNotes.map((note: any) => note.message_id))
+          filtered = filtered.filter((msg) => loveNoteIds.has(msg.message_id))
+        } catch (error) {
+          console.error('Error parsing love notes:', error)
+          // If no love notes are selected, show a message
+          filtered = []
+        }
+      } else {
+        // If no love notes are selected, show a message
+        filtered = []
+      }
+    }
+
+    // Love Notes mode - show only David's messages (we'll filter for audio files separately)
+    if (showLoveNotes) {
+      filtered = filtered.filter((msg) => {
+        // Only David's messages (is_from_me === "1")
+        const isFromDavid = String(msg.is_from_me) === "1"
+        return isFromDavid
       })
     }
 
@@ -1112,10 +921,67 @@ export default function MobileMessageApp() {
     }
 
     return filtered
-  }, [messages, selectedYear, searchQuery, searchFilters])
+  }, [messages, selectedYear, searchMode, searchQuery, showLoveNotes, searchFilters])
+
+  // Separate state for love notes with audio files
+  const [loveNotesWithAudio, setLoveNotesWithAudio] = useState<Message[]>([])
+  const [isLoadingLoveNotes, setIsLoadingLoveNotes] = useState(false)
+
+  // Load love notes with audio files when showLoveNotes changes
+  useEffect(() => {
+    if (showLoveNotes) {
+      const loadLoveNotesWithAudio = async () => {
+        console.log('🎵 Loading love notes with audio files...')
+        setIsLoadingLoveNotes(true)
+        
+        const davidMessages = filteredMessages.filter(msg => String(msg.is_from_me) === "1")
+        console.log(`🎵 Found ${davidMessages.length} David messages to check`)
+        
+        if (davidMessages.length === 0) {
+          console.log('🎵 No David messages found')
+          setLoveNotesWithAudio([])
+          setIsLoadingLoveNotes(false)
+          return
+        }
+        
+        try {
+          // Prepare messages for batch checking
+          const messagesToCheck = davidMessages.map(message => ({
+            messageId: String(message.message_id),
+            year: message.year || new Date(message.readable_date).getFullYear()
+          }))
+          
+          // Use the efficient batch checking function
+          const audioResults = await checkMultipleAudioFiles(messagesToCheck)
+          
+          // Filter messages that have audio files
+          const messagesWithAudio = davidMessages.filter(message => {
+            const messageId = String(message.message_id)
+            return audioResults.get(messageId) || false
+          })
+          
+          console.log(`🎵 Found ${messagesWithAudio.length} messages with audio files`)
+          setLoveNotesWithAudio(messagesWithAudio)
+        } catch (error) {
+          console.error('🎵 Error loading love notes with audio:', error)
+          setLoveNotesWithAudio([])
+        } finally {
+          setIsLoadingLoveNotes(false)
+        }
+      }
+      
+      loadLoveNotesWithAudio()
+    } else {
+      setLoveNotesWithAudio([])
+      setIsLoadingLoveNotes(false)
+    }
+  }, [filteredMessages, showLoveNotes])
+
+  // Use loveNotesWithAudio when showLoveNotes is true
+  const finalFilteredMessages = showLoveNotes ? loveNotesWithAudio : filteredMessages
 
   // Optimized message grouping with memoization
-  const messageGroups = useMemo(() => groupMessagesByTime(filteredMessages), [filteredMessages])
+  const messageGroups = useMemo(() => groupMessagesByTime(finalFilteredMessages), [finalFilteredMessages])
 
   // Optimized day grouping with better performance
   const groupedByDay = useMemo(() => {
@@ -1151,6 +1017,88 @@ export default function MobileMessageApp() {
     setSelectedYear(year)
     setSidebarOpen(false)
   }
+
+  // Love Notes Audio Functions
+  // Note: Using imported getAudioFilename from @/lib/audio-file-manager
+
+  // Check if audio file exists for a message
+  const checkAudioFileExists = useCallback(async (message: Message) => {
+    // Only check David's messages
+    if (String(message.is_from_me) !== "1") return false
+    
+    const messageYear = message.year || new Date(message.readable_date).getFullYear()
+    const messageId = String(message.message_id)
+    
+    // Use the new consistent naming pattern to check if the file exists
+    const filename = `david-${messageYear}-love-note-${messageId}.wav`
+    try {
+      const response = await fetch(`/audio/love-notes/${filename}`, { method: 'HEAD' })
+      return response.ok
+    } catch (error) {
+      return false
+    }
+  }, [])
+
+  const handlePlayAll = () => {
+    if (currentAudioFiles.length > 0) {
+      setAudioFiles(currentAudioFiles)
+      play(currentAudioFiles[0], 0)
+      setAutoPlay(true)
+    }
+  }
+
+  const handleStop = () => {
+    pause()
+    setAutoPlay(false)
+  }
+
+  const handleAudioIndexChange = (index: number) => {
+    if (currentAudioFiles[index]) {
+      play(currentAudioFiles[index], index)
+    }
+  }
+
+  const handleAutoPlayToggle = () => {
+    setAutoPlay(!autoPlay)
+  }
+
+  // Generate audio files list for current filtered messages
+  const [currentAudioFiles, setCurrentAudioFiles] = useState<string[]>([])
+
+  // Async effect to load audio files
+  useEffect(() => {
+    const loadAudioFiles = async () => {
+      if (!showLoveNotes) {
+        setCurrentAudioFiles([])
+        return
+      }
+      
+      const audioFiles: string[] = []
+      
+      for (const message of finalFilteredMessages) {
+        if (String(message.is_from_me) === "1") {
+          const messageYear = message.year || new Date(message.readable_date).getFullYear()
+          const messageId = String(message.message_id)
+          
+          try {
+            const filename = `david-${messageYear}-love-note-${messageId}.wav`
+            const response = await fetch(`/audio/love-notes/${filename}`, { method: 'HEAD' })
+            const hasAudio = response.ok
+            if (hasAudio) {
+              audioFiles.push(filename)
+            }
+          } catch (error) {
+            console.error(`Error checking audio for message ${messageId}:`, error)
+          }
+        }
+      }
+      
+      // Update the audio files state
+      setCurrentAudioFiles(audioFiles)
+    }
+    
+    loadAudioFiles()
+  }, [finalFilteredMessages, showLoveNotes])
 
   if (loading) {
     return (
@@ -1278,8 +1226,7 @@ export default function MobileMessageApp() {
         </div>
       </div>
     )
-  }
-
+  } 
   if (error) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
@@ -1297,16 +1244,26 @@ export default function MobileMessageApp() {
       </div>
     )
   }
-
+  
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
       {/* Header */}
       <div className="bg-gray-800 border-b border-gray-700 px-4 py-3">
         <div className="flex items-center gap-3">
+          {/* Mobile Menu Button - Only show on mobile */}
+          <Button
+            size="sm"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="bg-gray-700 hover:bg-gray-600 rounded-lg p-2 md:hidden"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+
+          {/* Search Bar */}
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder={searchMode === "all" ? "Search all messages..." : "Search this year..."}
+              placeholder="Search messages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400 rounded-full"
@@ -1321,45 +1278,14 @@ export default function MobileMessageApp() {
             )}
           </div>
 
+          {/* Emotion Filters Toggle */}
           <Button
             size="sm"
             onClick={() => setShowSearchPanel(!showSearchPanel)}
             className={`rounded-lg p-2 ${showSearchPanel ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-600 hover:bg-gray-700"}`}
+            title="Emotion Filters"
           >
-            <Search className="h-4 w-4" />
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={() => setSearchMode(searchMode === "all" ? "year" : "all")}
-            className={`rounded-lg p-2 ${searchMode === "all" ? "bg-green-600 hover:bg-green-700" : "bg-orange-600 hover:bg-orange-700"}`}
-            title={searchMode === "all" ? "Search all messages" : "Search this year only"}
-          >
-            {searchMode === "all" ? "🌍" : "📅"}
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={() => setShowDebug(!showDebug)}
-            className={`rounded-lg p-2 ${showDebug ? "bg-yellow-600 hover:bg-yellow-700" : "bg-red-600 hover:bg-red-700"}`}
-          >
-            <AlertTriangle className="h-4 w-4" />
-          </Button>
-
-          <Button size="sm" className="bg-purple-600 hover:bg-purple-700 rounded-lg p-2">
-            <Database className="h-4 w-4" />
-          </Button>
-
-          <Button size="sm" className="bg-gray-700 hover:bg-gray-600 rounded-full p-2">
-            <Plus className="h-4 w-4" />
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="bg-gray-700 hover:bg-gray-600 rounded-lg p-2"
-          >
-            <Menu className="h-4 w-4" />
+            🎭
           </Button>
         </div>
       </div>
@@ -1393,640 +1319,654 @@ export default function MobileMessageApp() {
           </div>
           
           <div className="grid grid-cols-6 gap-1">
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, love: !prev.emotions.love }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.love 
-                          ? "bg-red-500 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Love: ${emotionCounts.love} messages`}
-                    >
-                      ❤️ {emotionCounts.love}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, joy: !prev.emotions.joy }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.joy 
-                          ? "bg-yellow-500 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Joy: ${emotionCounts.joy} messages`}
-                    >
-                      😂 {emotionCounts.joy}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, sweet: !prev.emotions.sweet }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.sweet 
-                          ? "bg-pink-500 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Sweet: ${emotionCounts.sweet} messages`}
-                    >
-                      🥰 {emotionCounts.sweet}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, support: !prev.emotions.support }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.support 
-                          ? "bg-blue-500 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Support: ${emotionCounts.support} messages`}
-                    >
-                      😢 {emotionCounts.support}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, celebration: !prev.emotions.celebration }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.celebration 
-                          ? "bg-purple-500 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Celebration: ${emotionCounts.celebration} messages`}
-                    >
-                      🎉 {emotionCounts.celebration}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, deepTalks: !prev.emotions.deepTalks }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.deepTalks 
-                          ? "bg-indigo-500 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Deep Talks: ${emotionCounts.deepTalks} messages`}
-                    >
-                      💭 {emotionCounts.deepTalks}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, fights: !prev.emotions.fights }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.fights 
-                          ? "bg-red-600 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Fights: ${emotionCounts.fights} messages`}
-                    >
-                      😠 {emotionCounts.fights}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, anxiety: !prev.emotions.anxiety }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.anxiety 
-                          ? "bg-orange-600 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Anxiety: ${emotionCounts.anxiety} messages`}
-                    >
-                      😰 {emotionCounts.anxiety}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, excitement: !prev.emotions.excitement }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.excitement 
-                          ? "bg-yellow-600 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Excitement: ${emotionCounts.excitement} messages`}
-                    >
-                      🎉 {emotionCounts.excitement}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, sadness: !prev.emotions.sadness }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.sadness 
-                          ? "bg-blue-600 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Sadness: ${emotionCounts.sadness} messages`}
-                    >
-                      😢 {emotionCounts.sadness}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, gratitude: !prev.emotions.gratitude }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.gratitude 
-                          ? "bg-green-600 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Gratitude: ${emotionCounts.gratitude} messages`}
-                    >
-                      🙏 {emotionCounts.gratitude}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, sexiness: !prev.emotions.sexiness }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.sexiness 
-                          ? "bg-pink-600 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Sexiness: ${emotionCounts.sexiness} messages`}
-                    >
-                      🔥 {emotionCounts.sexiness}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, flirtation: !prev.emotions.flirtation }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.flirtation 
-                          ? "bg-purple-600 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Flirtation: ${emotionCounts.flirtation} messages`}
-                    >
-                      😉 {emotionCounts.flirtation}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, intimacy: !prev.emotions.intimacy }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.intimacy 
-                          ? "bg-red-600 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Intimacy: ${emotionCounts.intimacy} messages`}
-                    >
-                      💕 {emotionCounts.intimacy}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, jealousy: !prev.emotions.jealousy }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.jealousy 
-                          ? "bg-yellow-600 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Jealousy: ${emotionCounts.jealousy} messages`}
-                    >
-                      😤 {emotionCounts.jealousy}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, nostalgia: !prev.emotions.nostalgia }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.nostalgia 
-                          ? "bg-teal-600 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Nostalgia: ${emotionCounts.nostalgia} messages`}
-                    >
-                      😌 {emotionCounts.nostalgia}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, surprise: !prev.emotions.surprise }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.surprise 
-                          ? "bg-orange-600 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Surprise: ${emotionCounts.surprise} messages`}
-                    >
-                      😲 {emotionCounts.surprise}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, confusion: !prev.emotions.confusion }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.confusion 
-                          ? "bg-gray-500 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Confusion: ${emotionCounts.confusion} messages`}
-                    >
-                      🤔 {emotionCounts.confusion}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, relief: !prev.emotions.relief }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.relief 
-                          ? "bg-green-500 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Relief: ${emotionCounts.relief} messages`}
-                    >
-                      😌 {emotionCounts.relief}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, longing: !prev.emotions.longing }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.longing 
-                          ? "bg-purple-500 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Longing: ${emotionCounts.longing} messages`}
-                    >
-                      💔 {emotionCounts.longing}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, playfulness: !prev.emotions.playfulness }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.playfulness 
-                          ? "bg-cyan-600 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Playfulness: ${emotionCounts.playfulness} messages`}
-                    >
-                      😄 {emotionCounts.playfulness}
-                    </button>
-                    <button
-                      onClick={() => setSearchFilters(prev => ({ 
-                        ...prev, 
-                        emotions: { ...prev.emotions, neutral: !prev.emotions.neutral }
-                      }))}
-                      className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                        searchFilters.emotions.neutral 
-                          ? "bg-gray-500 text-white" 
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }`}
-                      title={`Neutral: ${emotionCounts.neutral} messages`}
-                    >
-                      😐 {emotionCounts.neutral}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-blue-700">
-                  <button
-                    onClick={() => setSearchFilters({
-                      sender: "",
-                      dateRange: "",
-                      hasAttachments: false,
-                      hasLinks: false,
-                      hasEmojis: false,
-                      emotions: {
-                        love: false,
-                        joy: false,
-                        sweet: false,
-                        support: false,
-                        celebration: false,
-                        deepTalks: false,
-                        fights: false,
-                        anxiety: false,
-                        excitement: false,
-                        sadness: false,
-                        gratitude: false,
-                        sexiness: false,
-                        flirtation: false,
-                        intimacy: false,
-                        jealousy: false,
-                        nostalgia: false,
-                        surprise: false,
-                        confusion: false,
-                        relief: false,
-                        longing: false,
-                        playfulness: false,
-                        neutral: false
-                      }
-                    })}
-                    className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs text-gray-300 transition-colors"
-                  >
-                    🗑️ Clear All Filters
-                  </button>
-                </div>
-              </div>
-            </div>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, love: !prev.emotions.love }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.love 
+                  ? "bg-red-500 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Love: ${emotionCounts.love} messages`}
+            >
+              ❤️ {emotionCounts.love}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, joy: !prev.emotions.joy }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.joy 
+                  ? "bg-yellow-500 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Joy: ${emotionCounts.joy} messages`}
+            >
+              😂 {emotionCounts.joy}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, sweet: !prev.emotions.sweet }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.sweet 
+                  ? "bg-pink-500 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Sweet: ${emotionCounts.sweet} messages`}
+            >
+              🥰 {emotionCounts.sweet}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, support: !prev.emotions.support }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.support 
+                  ? "bg-blue-500 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Support: ${emotionCounts.support} messages`}
+            >
+              😢 {emotionCounts.support}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, celebration: !prev.emotions.celebration }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.celebration 
+                  ? "bg-purple-500 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Celebration: ${emotionCounts.celebration} messages`}
+            >
+              🎉 {emotionCounts.celebration}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, deepTalks: !prev.emotions.deepTalks }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.deepTalks 
+                  ? "bg-indigo-500 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Deep Talks: ${emotionCounts.deepTalks} messages`}
+            >
+              💭 {emotionCounts.deepTalks}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, fights: !prev.emotions.fights }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.fights 
+                  ? "bg-red-600 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Fights: ${emotionCounts.fights} messages`}
+            >
+              😠 {emotionCounts.fights}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, anxiety: !prev.emotions.anxiety }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.anxiety 
+                  ? "bg-orange-600 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Anxiety: ${emotionCounts.anxiety} messages`}
+            >
+              😰 {emotionCounts.anxiety}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, excitement: !prev.emotions.excitement }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.excitement 
+                  ? "bg-yellow-600 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Excitement: ${emotionCounts.excitement} messages`}
+            >
+              🎉 {emotionCounts.excitement}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, sadness: !prev.emotions.sadness }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.sadness 
+                  ? "bg-blue-600 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Sadness: ${emotionCounts.sadness} messages`}
+            >
+              😢 {emotionCounts.sadness}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, gratitude: !prev.emotions.gratitude }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.gratitude 
+                  ? "bg-green-600 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Gratitude: ${emotionCounts.gratitude} messages`}
+            >
+              🙏 {emotionCounts.gratitude}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, sexiness: !prev.emotions.sexiness }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.sexiness 
+                  ? "bg-pink-600 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Sexiness: ${emotionCounts.sexiness} messages`}
+            >
+              🔥 {emotionCounts.sexiness}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, flirtation: !prev.emotions.flirtation }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.flirtation 
+                  ? "bg-purple-600 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Flirtation: ${emotionCounts.flirtation} messages`}
+            >
+              😉 {emotionCounts.flirtation}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, intimacy: !prev.emotions.intimacy }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.intimacy 
+                  ? "bg-red-600 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Intimacy: ${emotionCounts.intimacy} messages`}
+            >
+              💕 {emotionCounts.intimacy}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, jealousy: !prev.emotions.jealousy }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.jealousy 
+                  ? "bg-yellow-600 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Jealousy: ${emotionCounts.jealousy} messages`}
+            >
+              😤 {emotionCounts.jealousy}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, nostalgia: !prev.emotions.nostalgia }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.nostalgia 
+                  ? "bg-teal-600 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Nostalgia: ${emotionCounts.nostalgia} messages`}
+            >
+              😌 {emotionCounts.nostalgia}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, surprise: !prev.emotions.surprise }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.surprise 
+                  ? "bg-orange-600 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Surprise: ${emotionCounts.surprise} messages`}
+            >
+              😲 {emotionCounts.surprise}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, confusion: !prev.emotions.confusion }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.confusion 
+                  ? "bg-gray-500 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Confusion: ${emotionCounts.confusion} messages`}
+            >
+              🤔 {emotionCounts.confusion}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, relief: !prev.emotions.relief }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.relief 
+                  ? "bg-green-500 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Relief: ${emotionCounts.relief} messages`}
+            >
+              😌 {emotionCounts.relief}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, longing: !prev.emotions.longing }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.longing 
+                  ? "bg-purple-500 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Longing: ${emotionCounts.longing} messages`}
+            >
+              💔 {emotionCounts.longing}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, playfulness: !prev.emotions.playfulness }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.playfulness 
+                  ? "bg-cyan-600 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Playfulness: ${emotionCounts.playfulness} messages`}
+            >
+              😄 {emotionCounts.playfulness}
+            </button>
+            <button
+              onClick={() => setSearchFilters(prev => ({ 
+                ...prev, 
+                emotions: { ...prev.emotions, neutral: !prev.emotions.neutral }
+              }))}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                searchFilters.emotions.neutral 
+                  ? "bg-gray-500 text-white" 
+                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+              }`}
+              title={`Neutral: ${emotionCounts.neutral} messages`}
+            >
+              😐 {emotionCounts.neutral}
+            </button>
           </div>
         </div>
       )}
 
-
-
-      {/* Debug Panel */}
-      {showDebug && debugInfo && (
-        <div className="bg-red-900 border-b border-red-700 p-4 text-xs">
-          <h3 className="text-red-200 font-semibold mb-3">🔍 WHERE ARE THE 2016 MESSAGES?</h3>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <div className="bg-red-800 p-3 rounded">
-              <h4 className="text-red-300 font-medium mb-2">Database</h4>
-              <p className="text-red-100">Total: {debugInfo.totalRawMessages}</p>
-              <p className="text-red-100">Expected: 20,000+</p>
-              <p className={`${debugInfo.totalRawMessages < 1000 ? "text-red-300 font-bold" : "text-red-100"}`}>
-                Status: {debugInfo.totalRawMessages < 1000 ? "🚨 LOW" : "✅ OK"}
-              </p>
-            </div>
-
-            <div className="bg-blue-800 p-3 rounded">
-              <h4 className="text-blue-300 font-medium mb-2">Date Range</h4>
-              <p className="text-blue-100">From: {debugInfo.dateRangeAnalysis.earliest}</p>
-              <p className="text-blue-100">To: {debugInfo.dateRangeAnalysis.latest}</p>
-              <p className="text-blue-100">Span: {debugInfo.dateRangeAnalysis.totalSpan}</p>
-              <p
-                className={`${debugInfo.dateRangeAnalysis.missingYears.includes(2016) ? "text-red-300" : "text-green-300"}`}
-              >
-                2016: {debugInfo.dateRangeAnalysis.missingYears.includes(2016) ? "MISSING" : "EXISTS"}
-              </p>
-            </div>
-
-            <div className="bg-purple-800 p-3 rounded">
-              <h4 className="text-purple-300 font-medium mb-2">2016 Hunt</h4>
-              <p className={`${debugInfo.year2016Analysis.found ? "text-green-100" : "text-red-100"}`}>
-                Found: {debugInfo.year2016Analysis.found ? "YES" : "NO"}
-              </p>
-              <p className="text-purple-100">Count: {debugInfo.year2016Analysis.count}</p>
-              <p className="text-purple-100">Range: {debugInfo.year2016Analysis.dateRange.substring(0, 20)}...</p>
-              {debugInfo.year2016Analysis.error && (
-                <p className="text-red-300">Error: {debugInfo.year2016Analysis.error}</p>
-              )}
-            </div>
-
-            <div className="bg-yellow-800 p-3 rounded">
-              <h4 className="text-yellow-300 font-medium mb-2">Year Distribution</h4>
-              {Object.entries(debugInfo.yearDistribution)
-                .slice(0, 4)
-                .map(([year, count]) => (
-                  <p key={year} className={`${year === "2016" ? "text-green-100 font-bold" : "text-yellow-100"}`}>
-                    {year}: {count}
-                  </p>
-                ))}
-              <p className="text-yellow-200">2016: {debugInfo.yearDistribution[2016] || 0}</p>
-            </div>
-
-            <div className="bg-green-800 p-3 rounded">
-              <h4 className="text-green-300 font-medium mb-2">Processing</h4>
-              <p className="text-green-100">Processed: {messages.length}</p>
-              <p className="text-green-100">Pages: {debugInfo.supabaseQueryInfo.pagesFetched || 0}</p>
-              <p className="text-green-100">Expected: {debugInfo.supabaseQueryInfo.totalRecordsExpected || 0}</p>
-              <p className="text-green-100">2016 Final: {yearData.find((y) => y.year === 2016)?.count || 0}</p>
-            </div>
-
-            <div className="bg-gray-800 p-3 rounded">
-              <h4 className="text-gray-300 font-medium mb-2">Missing Years</h4>
-              {debugInfo.dateRangeAnalysis.missingYears.length > 0 ? (
-                debugInfo.dateRangeAnalysis.missingYears.slice(0, 5).map((year) => (
-                  <p key={year} className={`${year === 2016 ? "text-red-300 font-bold" : "text-gray-100"}`}>
-                    {year}
-                  </p>
-                ))
-              ) : (
-                <p className="text-green-100">None</p>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-3 p-2 bg-gray-800 rounded">
-            <p className="text-gray-300">
-              <strong>Conclusion:</strong>{" "}
-              {debugInfo.year2016Analysis.found
-                ? `✅ 2016 data exists in database (${debugInfo.year2016Analysis.count} messages)`
-                : "❌ No 2016 data found in database"}
-            </p>
-          </div>
-        </div>
-      )}
-
-      <div className="flex">
-        {/* Sidebar */}
-        <div
-          className={`
-          fixed inset-y-0 left-0 z-50 w-80 bg-gray-800 border-r border-gray-700 transform transition-transform duration-300 ease-in-out
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:relative lg:translate-x-0
-        `}
-        >
-          <div className="flex flex-col h-full">
-            <div className="p-4 border-b border-gray-700">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <MessageCircle className="h-4 w-4 text-white" />
-                </div>
-                <div>
-                  <h2 className="font-semibold text-gray-100">Message Timeline</h2>
-                  <p className="text-xs text-gray-400">{filteredMessages.length.toLocaleString()} messages</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-4">
+      {/* Desktop Layout */}
+      <div className="flex h-[calc(100vh-64px)]">
+        {/* Desktop Sidebar - Always visible on desktop */}
+        <div className="hidden md:block w-80 bg-gray-800 border-r border-gray-700 p-4 overflow-y-auto">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold mb-4">Messages</h2>
+            
+            {/* Love Notes Section */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-300 mb-3">💕 Love Notes</h3>
+              <div className="space-y-2">
                 <button
-                  onClick={() => setMessagesExpanded(!messagesExpanded)}
-                  className="flex items-center justify-between w-full text-left mb-3"
+                  onClick={() => setShowLoveNotes(!showLoveNotes)}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    showLoveNotes
+                      ? "bg-gradient-to-r from-pink-500 to-red-500 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <MessageCircle className="h-4 w-4 text-gray-400" />
-                    <span className="font-medium text-gray-100">MESSAGES</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Heart className="h-4 w-4" />
+                      <span>David's Love Notes</span>
+                    </div>
+                    {showLoveNotes && (
+                      <span className="text-xs opacity-75">🎵 Audio</span>
+                    )}
                   </div>
-                  {messagesExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-gray-400" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-gray-400" />
-                  )}
                 </button>
-
-                {messagesExpanded && (
-                  <div className="space-y-1 ml-7">
-                    <button
-                      onClick={() => selectYear(null)}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                        selectedYear === null
-                          ? "bg-gray-700 text-gray-100"
-                          : "text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>All Messages</span>
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full ${messages.length < 1000 ? "bg-red-600" : "bg-gray-600"}`}
-                        >
-                          {messages.length.toLocaleString()}
-                        </span>
-                      </div>
-                    </button>
-
-                    {yearData.map((yearInfo) => (
-                      <div key={yearInfo.year}>
-                        <button
-                          onClick={() => selectYear(yearInfo.year)}
-                          className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                            selectedYear === yearInfo.year
-                              ? "bg-gray-700 text-gray-100"
-                              : "text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className={`w-2 h-2 rounded-full ${
-                                  yearInfo.year === 2016
-                                    ? "bg-purple-500"
-                                    : yearInfo.year >= 2020
-                                      ? "bg-purple-500"
-                                      : yearInfo.year >= 2018
-                                        ? "bg-pink-500"
-                                        : "bg-gray-500"
-                                }`}
-                              />
-                              <span>{yearInfo.year}</span>
-                            </div>
-                            <span className="text-xs bg-gray-600 px-2 py-1 rounded-full">
-                              {yearInfo.count.toLocaleString()}
-                            </span>
-                          </div>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                {showLoveNotes && (
+                  <button
+                    onClick={() => setShowContext(!showContext)}
+                    className={`w-full text-left p-3 rounded-lg transition-colors ${
+                      showContext
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>💬</span>
+                      <span>Show Context</span>
+                    </div>
+                  </button>
                 )}
               </div>
             </div>
-
-
+            
+            {/* Search Mode Toggle */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-300 mb-3">Search Mode</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => setSearchMode("all")}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    searchMode === "all"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>🌍</span>
+                    <span>All Messages</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setSearchMode("year")}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    searchMode === "year"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>📅</span>
+                    <span>This Year Only</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+            
+            {/* Year Filter */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-300 mb-3">Year Filter</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => selectYear(null)}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    selectedYear === null
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span>All Years</span>
+                    <span className="text-sm opacity-75">{messages.length}</span>
+                  </div>
+                </button>
+                
+                {yearData.map((yearInfo) => (
+                  <button
+                    key={yearInfo.year}
+                    onClick={() => selectYear(yearInfo.year)}
+                    className={`w-full text-left p-3 rounded-lg transition-colors ${
+                      selectedYear === yearInfo.year
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span>{yearInfo.year}</span>
+                      <span className="text-sm opacity-75">{yearInfo.count}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 min-h-screen">
-          <div className="bg-gray-800 border-b border-gray-700 px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="font-semibold text-gray-100">
-                  {selectedYear ? `Messages from ${selectedYear}` : "All Messages"}
-                  {searchMode === "all" && searchQuery && (
-                    <span className="text-blue-400 text-sm ml-2">(Searching all years)</span>
-                  )}
-                </h1>
-                <p className="text-xs text-gray-400">
-                  {filteredMessages.length.toLocaleString()} messages
-                  {searchQuery && ` matching "${searchQuery}"`}
-                  {searchFilters.hasAttachments && " 📎"}
-                  {searchFilters.hasLinks && " 🔗"}
-                  {searchFilters.hasEmojis && " 😊"}
-                  {Object.values(searchFilters.emotions).some(Boolean) && (
-                    <span className="ml-1">
-                      {Object.entries(searchFilters.emotions)
-                        .filter(([_, isActive]) => isActive)
-                        .map(([emotion]) => {
-                          const emojis = { 
-                            love: '❤️', 
-                            joy: '😂', 
-                            sweet: '🥰', 
-                            support: '😢', 
-                            celebration: '🎉', 
-                            deepTalks: '💭', 
-                            fights: '😠',
-                            anxiety: '😰',
-                            excitement: '🎉',
-                            sadness: '😢',
-                            gratitude: '🙏',
-                            sexiness: '🔥',
-                            flirtation: '😉',
-                            intimacy: '💕',
-                            jealousy: '😤',
-                            nostalgia: '😌',
-                            surprise: '😲',
-                            confusion: '🤔',
-                            relief: '😌',
-                            longing: '💔',
-                            playfulness: '😄'
-                          }
-                          return emojis[emotion as keyof typeof emojis]
-                        })
-                        .join(' ')}
-                    </span>
-                  )}
-                </p>
-              </div>
-              <Calendar className="h-5 w-5 text-gray-400" />
-            </div>
-          </div>
-
-          <div className="px-4 py-6 max-w-2xl mx-auto">
-            {groupedByDay.length === 0 ? (
-              <div className="text-center py-12">
-                <MessageCircle className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400">
-                  {searchQuery ? "No messages found matching your search" : "No messages found"}
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Performance indicator for large datasets */}
-                {groupedByDay.length > displayLimit && (
-                  <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
-                    <p className="text-yellow-300 text-sm">
-                      ⚡ Showing {limitedGroupedByDay.length} of {groupedByDay.length} days for performance
+        <div className="flex-1 overflow-y-auto pb-4">
+          {/* Direct Audio Player */}
+          {showLoveNotes ? (
+            <DirectAudioPlayer selectedYear={selectedYear} />
+          ) : (
+            <>
+              {limitedGroupedByDay.length === 0 ? (
+            <div className="flex items-center justify-center h-64 px-4">
+              <div className="text-center">
+                {searchMode === "love" ? (
+                  <>
+                    <div className="text-6xl mb-4">💕</div>
+                    <h3 className="text-xl font-semibold text-gray-300 mb-2">No Love Notes Selected</h3>
+                    <p className="text-gray-400 mb-4">
+                      You haven't selected any love notes yet.
                     </p>
-                    <p className="text-yellow-400 text-xs mt-1">
-                      Use search or year filter to see specific data
-                    </p>
-                  </div>
+                    <Button 
+                      onClick={() => window.open('/love-notes-selector', '_blank')}
+                      className="bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600"
+                    >
+                      Select Love Notes
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                    <p className="text-gray-400">No messages found</p>
+                    {searchQuery && (
+                      <p className="text-sm text-gray-500 mt-2">
+                        Try adjusting your search or filters
+                      </p>
+                    )}
+                    {showLoveNotes && (
+                      <div className="text-sm text-gray-500 mt-2">
+                        {isLoadingLoveNotes ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pink-500"></div>
+                            <span>Loading love notes with audio files...</span>
+                          </div>
+                        ) : (
+                          <p>Audio generation is in progress. Only messages with audio files are shown.</p>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
-                
-                {limitedGroupedByDay.map(([dayString, dayGroups]) => (
-                  <div key={dayString}>
-                    <DayHeader date={new Date(dayString)} />
-                    {dayGroups.map((group) => (
-                      <MessageGroup key={group.id} group={group} />
+              </div>
+            </div>
+          ) : (
+            <div className="px-4 md:px-8 space-y-4 md:space-y-6">
+              {limitedGroupedByDay.map(([dayKey, groups]) => {
+                const dayDate = new Date(dayKey)
+                return (
+                  <div key={dayKey}>
+                    <DayHeader date={dayDate} />
+                    {groups.map((group) => (
+                      <MessageGroup 
+                        key={group.id} 
+                        group={group} 
+                        searchMode={searchMode}
+                        showLoveNotes={showLoveNotes}
+                        isPlaying={isPlaying}
+                        onPlay={() => play()}
+                        onPause={() => pause()}
+                        onEnded={() => {
+                          if (autoPlay && currentIndex < currentAudioFiles.length - 1) {
+                            next()
+                          } else {
+                            pause()
+                          }
+                        }}
+                      />
                     ))}
                   </div>
-                ))}
-              </>
-            )}
-          </div>
+                )
+              })}
+            </div>
+          )}
+            </>
+          )}
         </div>
       </div>
 
+      {/* Mobile Sidebar - Only on mobile */}
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden">
+          <div className="fixed left-0 top-0 h-full w-80 bg-gray-800 border-r border-gray-700 p-4">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-semibold">Messages</h2>
+              <Button onClick={() => setSidebarOpen(false)} className="bg-red-600 hover:bg-red-700">
+                ×
+              </Button>
+            </div>
+            
+            {/* Love Notes Section */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-300 mb-3">💕 Love Notes</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    setShowLoveNotes(!showLoveNotes)
+                    setSidebarOpen(false)
+                  }}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    showLoveNotes
+                      ? "bg-gradient-to-r from-pink-500 to-red-500 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Heart className="h-4 w-4" />
+                    <span>David's Love Notes</span>
+                  </div>
+                </button>
+                {showLoveNotes && (
+                  <button
+                    onClick={() => setShowContext(!showContext)}
+                    className={`w-full text-left p-3 rounded-lg transition-colors ${
+                      showContext
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>💬</span>
+                      <span>Show Context</span>
+                    </div>
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            {/* Search Mode Toggle */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-300 mb-3">Search Mode</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => setSearchMode("all")}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    searchMode === "all"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>🌍</span>
+                    <span>All Messages</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setSearchMode("year")}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    searchMode === "year"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>📅</span>
+                    <span>This Year Only</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setSearchMode("love")}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    searchMode === "love"
+                      ? "bg-pink-600 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>💕</span>
+                    <span>Love Notes</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+            
+            {/* Year Filter */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-300 mb-3">Year Filter</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => selectYear(null)}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    selectedYear === null
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span>All Years</span>
+                    <span className="text-sm opacity-75">{messages.length}</span>
+                  </div>
+                </button>
+                
+                {yearData.map((yearInfo) => (
+                  <button
+                    key={yearInfo.year}
+                    onClick={() => selectYear(yearInfo.year)}
+                    className={`w-full text-left p-3 rounded-lg transition-colors ${
+                      selectedYear === yearInfo.year
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span>{yearInfo.year}</span>
+                      <span className="text-sm opacity-75">{yearInfo.count}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

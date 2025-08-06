@@ -152,7 +152,7 @@ export default function CinematicLoveLetters() {
                   const isDavid = msg.is_from_me === 1 || msg.is_from_me === "1" || msg.sender === "David"
 
                   return {
-                    id: `msg-${msg.message_id}`,
+                    id: msg.message_id ? `msg-${msg.message_id}` : `msg-index-${index}`,
                     text,
                     date: msg.date,
                     sender: isDavid ? "David" : "Nitzan",

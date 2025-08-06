@@ -83,3 +83,30 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-500;
 }
+
+/* Fix for unwanted pseudo-element content display */
+*::before,
+*::after {
+  content: '' !important;
+}
+
+/* Ensure no numeric content is displayed via CSS */
+[class*="message"]::before,
+[class*="message"]::after,
+[class*="bubble"]::before,
+[class*="bubble"]::after {
+  content: '' !important;
+  display: none !important;
+}
+
+/* Hide any element that only contains "0" */
+*:not(input):not(textarea) {
+  font-size: inherit !important;
+}
+
+/* Specifically target and hide any "0" text nodes that might be appearing */
+div:has(> div[class*="message"]):before,
+div:has(> div[class*="bubble"]):before {
+  content: '' !important;
+  display: none !important;
+}

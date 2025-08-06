@@ -1,5 +1,5 @@
-import MobileMessageApp from '@/components/mobile-message-app'
+import { redirect } from 'next/navigation'
 
 export default function MobileMessagesPage() {
-  return <MobileMessageApp />
+  redirect('/')
 }

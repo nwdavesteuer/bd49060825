@@ -50,3 +50,6 @@ next-env.d.ts
 
 # Audio files - keep WAV masters locally, deploy MP3 versions only
 /public/audio/love-notes/*.wav
+
+# Photo files - keep locally, don't deploy large image/video files
+/public/extracted-photos/

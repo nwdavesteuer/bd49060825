@@ -31,7 +31,7 @@ export default function AudioAnalytics({
     const stats: Record<number, YearStats> = {}
     
     audioFiles.forEach(filename => {
-      const match = filename.match(/david-(\d{4})-love-note-(\d+)\.wav/)
+      const match = filename.match(/david-(\d{4})-love-note-(\d+)\.mp3/)
       if (match) {
         const year = parseInt(match[1])
         if (!stats[year]) {

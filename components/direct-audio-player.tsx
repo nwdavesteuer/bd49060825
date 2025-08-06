@@ -78,7 +78,7 @@ export default function DirectAudioPlayer({ selectedYear = null }: DirectAudioPl
       const yearsSet = new Set<number>()
       
       files.forEach((filename, index) => {
-        const match = filename.match(/david-(\d{4})-love-note-(\d+)\.wav/)
+        const match = filename.match(/david-(\d{4})-love-note-(\d+)\.mp3/)
         if (match) {
           const year = parseInt(match[1])
           const messageId = match[2]
@@ -315,7 +315,7 @@ export default function DirectAudioPlayer({ selectedYear = null }: DirectAudioPl
                 
                 <audio
                   ref={audioRef}
-                  src={`/audio/love-notes/${selectedFile.filename}`}
+                  src={`/audio/love-notes-mp3/${selectedFile.filename}`}
                   onEnded={() => {
                     setIsPlaying(false)
                     // Auto-play next if available

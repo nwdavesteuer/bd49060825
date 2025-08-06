@@ -124,7 +124,7 @@ export default function LoveNotes2016Page() {
                   </div>
                   
                   <AudioPlayer
-                    audioUrl={`/audio/love-notes/${note.filename}`}
+                    audioUrl={`/audio/love-notes-mp3/${note.filename}`}
                     className="w-full"
                   />
                 </div>

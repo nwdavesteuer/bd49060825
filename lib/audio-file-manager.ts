@@ -95,9 +95,9 @@ async function getAvailableAudioFilesWithMetadata(): Promise<AudioFileInfo[]> {
 
     for (const filename of audioFiles) {
       // Handle both naming patterns:
-      // 1. david-{year}-love-note-{timestamp}_{sequence}.wav (2015-2017)
-      // 2. david-{year}-love-note-{messageId}.wav (2018-2024)
-      const match = filename.match(/david-(\d{4})-love-note-(.+)\.wav/)
+      // 1. david-{year}-love-note-{timestamp}_{sequence}.mp3 (2015-2017)
+      // 2. david-{year}-love-note-{messageId}.mp3 (2018-2024)
+      const match = filename.match(/david-(\d{4})-love-note-(.+)\.mp3/)
       if (match) {
         const year = parseInt(match[1])
         const messageId = match[2]
@@ -159,7 +159,7 @@ export async function getAudioFileStats(year?: number): Promise<AudioFileStats> 
     
     if (missing > 0) {
       for (let i = 0; i < missing; i++) {
-        missingFiles.push(`david-${yearStr}-love-note-${i}.wav`)
+        missingFiles.push(`david-${yearStr}-love-note-${i}.mp3`)
       }
     }
   })
@@ -178,10 +178,10 @@ export async function hasAudioFile(messageId: string, year: number): Promise<boo
   try {
     // IMPORTANT: Don't use CSV files - they have wrong IDs
     // Just check if the file exists with the database message ID
-    const filename = `david-${year}-love-note-${messageId}.wav`
+    const filename = `david-${year}-love-note-${messageId}.mp3`
     
     // Check if the file actually exists
-    const response = await fetch(`/audio/love-notes/${filename}`, { method: 'HEAD' })
+    const response = await fetch(`/audio/love-notes-mp3/${filename}`, { method: 'HEAD' })
     return response.ok
   } catch (error) {
     console.error(`Error checking audio file for message ${messageId} year ${year}:`, error)
@@ -203,10 +203,10 @@ export async function checkMultipleAudioFiles(messages: Array<{messageId: string
       let hasAudio = false
       
       // With the new consistent naming pattern, we can directly check if the file exists
-      const filename = `david-${year}-love-note-${messageId}.wav`
+      const filename = `david-${year}-love-note-${messageId}.mp3`
       
       try {
-        const response = await fetch(`/audio/love-notes/${filename}`, { method: 'HEAD' })
+        const response = await fetch(`/audio/love-notes-mp3/${filename}`, { method: 'HEAD' })
         if (response.ok) {
           hasAudio = true
           console.log(`✅ Found audio file for ${messageId} in ${year}: ${filename}`)
@@ -236,8 +236,8 @@ export async function getAudioFilename(messageId: string, year: number): Promise
   try {
     // IMPORTANT: Don't use CSV files - they have wrong IDs
     // Just construct the filename directly with the database message ID
-    // Format: david-{year}-love-note-{messageId}.wav
-    const filename = `david-${year}-love-note-${messageId}.wav`
+    // Format: david-{year}-love-note-{messageId}.mp3
+    const filename = `david-${year}-love-note-${messageId}.mp3`
     
     console.log(`🎵 Constructed filename: ${filename} for message ${messageId} year ${year}`)
     
@@ -245,7 +245,7 @@ export async function getAudioFilename(messageId: string, year: number): Promise
     return filename
   } catch (error) {
     console.error(`Error getting audio filename for message ${messageId} year ${year}:`, error)
-    return `david-${year}-love-note-${messageId}.wav`
+    return `david-${year}-love-note-${messageId}.mp3`
   }
 }
 

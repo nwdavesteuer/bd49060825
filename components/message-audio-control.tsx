@@ -50,7 +50,7 @@ export default function MessageAudioControl({
       {/* Hidden Audio Element */}
       <audio
         ref={audioRef}
-        src={`/audio/love-notes/${audioFile}`}
+        src={`/audio/love-notes-mp3/${audioFile}`}
         onEnded={onEnded}
       />
     </div>

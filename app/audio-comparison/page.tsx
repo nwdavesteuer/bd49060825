@@ -137,7 +137,7 @@ export default function AudioComparisonPage() {
                       </div>
                       
                       <AudioPlayer
-                        audioUrl={`/audio/love-notes/${note2015.filename}`}
+                        audioUrl={`/audio/love-notes-mp3/${note2015.filename}`}
                         className="w-full"
                       />
                     </div>
@@ -171,7 +171,7 @@ export default function AudioComparisonPage() {
                       
                       {note2016 && (
                         <AudioPlayer
-                          audioUrl={`/audio/love-notes/${note2016.filename}`}
+                          audioUrl={`/audio/love-notes-mp3/${note2016.filename}`}
                           className="w-full"
                         />
                       )}

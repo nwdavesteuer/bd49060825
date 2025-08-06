@@ -147,11 +147,11 @@ function MessageBubble({
           const filename = await getAudioFilename(messageId, messageYear)
           
           // Check if the file exists using the new consistent naming pattern
-          console.log(`🔍 Checking for audio file: /audio/love-notes/${filename}`)
+          console.log(`🔍 Checking for audio file: /audio/love-notes-mp3/${filename}`)
           
           // Try a simple HEAD request without cache busting first
           try {
-            const response = await fetch(`/audio/love-notes/${filename}`, { 
+            const response = await fetch(`/audio/love-notes-mp3/${filename}`, { 
               method: 'HEAD'
             })
             const exists = response.ok
@@ -1030,7 +1030,7 @@ export default function MobileMessageApp() {
     const messageId = String(message.message_id)
     
     // Use the new consistent naming pattern to check if the file exists
-    const filename = `david-${messageYear}-love-note-${messageId}.wav`
+    const filename = `david-${messageYear}-love-note-${messageId}.mp3`
     try {
       const response = await fetch(`/audio/love-notes/${filename}`, { method: 'HEAD' })
       return response.ok
@@ -1081,8 +1081,8 @@ export default function MobileMessageApp() {
           const messageId = String(message.message_id)
           
           try {
-            const filename = `david-${messageYear}-love-note-${messageId}.wav`
-            const response = await fetch(`/audio/love-notes/${filename}`, { method: 'HEAD' })
+            const filename = `david-${messageYear}-love-note-${messageId}.mp3`
+            const response = await fetch(`/audio/love-notes-mp3/${filename}`, { method: 'HEAD' })
             const hasAudio = response.ok
             if (hasAudio) {
               audioFiles.push(filename)

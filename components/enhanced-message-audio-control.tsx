@@ -28,7 +28,7 @@ export default function EnhancedMessageAudioControl({
     const checkAudioExists = async () => {
       try {
         setIsLoading(true)
-        const response = await fetch(`/audio/love-notes/${audioFile}`, { 
+        const response = await fetch(`/audio/love-notes-mp3/${audioFile}`, { 
           method: 'HEAD'
         })
         setHasAudio(response.ok)
@@ -86,7 +86,7 @@ export default function EnhancedMessageAudioControl({
       {/* Hidden Audio Element */}
       <audio
         ref={audioRef}
-        src={`/audio/love-notes/${audioFile}`}
+        src={`/audio/love-notes-mp3/${audioFile}`}
         preload="none"
         onEnded={() => setIsPlaying(false)}
         onError={() => {

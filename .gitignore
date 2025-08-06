@@ -47,3 +47,6 @@ next-env.d.ts
 # Build artifacts
 *.log
 *.out
+
+# Audio files - keep WAV masters locally, deploy MP3 versions only
+/public/audio/love-notes/*.wav

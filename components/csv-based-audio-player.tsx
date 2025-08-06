@@ -56,7 +56,7 @@ export default function CsvBasedAudioPlayer() {
               const [_, id, text, date, emotion, filename] = match
               
               // Check if the audio file actually exists
-              const audioResponse = await fetch(`/audio/love-notes/${filename}`, { method: 'HEAD' })
+              const audioResponse = await fetch(`/audio/love-notes-mp3/${filename}`, { method: 'HEAD' })
               if (audioResponse.ok) {
                 allMessages.push({
                   id,
@@ -266,7 +266,7 @@ export default function CsvBasedAudioPlayer() {
                 <div className="max-w-3xl mx-auto">
                   <audio
                     ref={audioRef}
-                    src={`/audio/love-notes/${selectedMessage.audioFile}`}
+                    src={`/audio/love-notes-mp3/${selectedMessage.audioFile}`}
                     onEnded={() => setIsPlaying(false)}
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}

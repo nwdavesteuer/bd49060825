@@ -4,7 +4,7 @@ import path from 'path'
 
 export async function GET() {
   try {
-    const audioDir = path.join(process.cwd(), 'public', 'audio', 'love-notes')
+    const audioDir = path.join(process.cwd(), 'public', 'audio', 'love-notes-mp3')
     
     // Check if directory exists
     if (!fs.existsSync(audioDir)) {
@@ -14,8 +14,8 @@ export async function GET() {
     // Read all files in the directory
     const files = fs.readdirSync(audioDir)
     
-    // Filter for .wav files only
-    const audioFiles = files.filter(file => file.endsWith('.wav'))
+    // Filter for .mp3 files only
+    const audioFiles = files.filter(file => file.endsWith('.mp3'))
     
     console.log(`Found ${audioFiles.length} audio files`)
     

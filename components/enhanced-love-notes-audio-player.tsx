@@ -330,7 +330,7 @@ export default function EnhancedLoveNotesAudioPlayer({
       {/* Hidden Audio Element */}
       <audio
         ref={audioRef}
-        src={`/audio/love-notes/${currentAudioFile}`}
+        src={`/audio/love-notes-mp3/${currentAudioFile}`}
         onPlay={() => {/* Handle play state */}}
         onPause={() => {/* Handle pause state */}}
         preload="metadata"

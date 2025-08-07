@@ -53,3 +53,12 @@ next-env.d.ts
 
 # Photo files - keep locally, don't deploy large image/video files
 /public/extracted-photos/
+
+# Google API credentials and tokens - NEVER commit these
+**/google-credentials.json
+**/google-photos-token.json
+**/google-photos-token.pickle
+**/*credentials*.json
+**/*token*.json
+**/*token*.pickle
+**/client_secret_*.json

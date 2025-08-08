@@ -1662,118 +1662,98 @@ export default function MobileMessageApp() {
       <div className="flex h-[calc(100vh-64px)]">
         {/* Desktop Sidebar - Always visible on desktop */}
         <div className="hidden md:block w-80 bg-gray-800 border-r border-gray-700 p-4 overflow-y-auto">
+          {/* Section: Messages */}
+          <h2 className="text-lg font-semibold mb-4">Messages</h2>
+
+          {/* Section: Search */}
           <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-4">Messages</h2>
-            
-            {/* Love Notes Section */}
-            <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-300 mb-3">💕 Love Notes</h3>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setShowLoveNotes(!showLoveNotes)}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    showLoveNotes
-                      ? "bg-gradient-to-r from-pink-500 to-red-500 text-white"
-                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Heart className="h-4 w-4" />
-                      <span>David's Love Notes</span>
-                    </div>
-                    {showLoveNotes && (
-                      <span className="text-xs opacity-75">🎵 Audio</span>
-                    )}
-                  </div>
-                </button>
-                {showLoveNotes && (
-                  <button
-                    onClick={() => setShowContext(!showContext)}
-                    className={`w-full text-left p-3 rounded-lg transition-colors ${
-                      showContext
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>💬</span>
-                      <span>Show Context</span>
-                    </div>
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            {/* Search Mode Toggle */}
-            <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-300 mb-3">Search Mode</h3>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setSearchMode("all")}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    searchMode === "all"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                  }`}
-                >
+            <h3 className="text-sm font-medium text-gray-300 mb-3">Search</h3>
+            <div className="space-y-2">
+              <button
+                onClick={() => setSearchMode("all")}
+                className={`w-full text-left p-3 rounded-lg transition-colors ${
+                  searchMode === "all"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span>🌍</span>
+                  <span>All Messages</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setShowLoveNotes(!showLoveNotes)}
+                className={`w-full text-left p-3 rounded-lg transition-colors ${
+                  showLoveNotes
+                    ? "bg-gradient-to-r from-pink-500 to-red-500 text-white"
+                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                }`}
+              >
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span>🌍</span>
-                    <span>All Messages</span>
+                    <Heart className="h-4 w-4" />
+                    <span>Love Notes</span>
                   </div>
-                </button>
+                  {showLoveNotes && (
+                    <span className="text-xs opacity-75">🎵 Audio</span>
+                  )}
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Section: Year & Month Filter */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-gray-300 mb-3">Year Filter</h3>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <button
+                onClick={() => selectYear(null)}
+                className={`p-2 rounded-md text-sm transition-colors ${
+                  selectedYear === null ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                }`}
+              >
+                All
+              </button>
+              {yearData.map((yearInfo) => (
                 <button
-                  onClick={() => setSearchMode("year")}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    searchMode === "year"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  key={yearInfo.year}
+                  onClick={() => selectYear(yearInfo.year)}
+                  className={`p-2 rounded-md text-sm transition-colors ${
+                    selectedYear === yearInfo.year ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span>📅</span>
-                    <span>This Year Only</span>
-                  </div>
+                  {yearInfo.year}
                 </button>
-              </div>
+              ))}
             </div>
-            
-            {/* Year Filter */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-300 mb-3">Year Filter</h3>
-              <div className="space-y-2">
-                <button
-                  onClick={() => selectYear(null)}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    selectedYear === null
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span>All Years</span>
-                    <span className="text-sm opacity-75">{messages.length}</span>
-                  </div>
-                </button>
-                
-                {yearData.map((yearInfo) => (
-                  <button
-                    key={yearInfo.year}
-                    onClick={() => selectYear(yearInfo.year)}
-                    className={`w-full text-left p-3 rounded-lg transition-colors ${
-                      selectedYear === yearInfo.year
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <span>{yearInfo.year}</span>
-                      <span className="text-sm opacity-75">{yearInfo.count}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
+
+            {selectedYear && (
+              <>
+                <p className="text-xs text-gray-400 mb-2">Months</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                    <button
+                      key={month}
+                      onClick={() => {
+                        // navigate to first message of selected month by filtering messages
+                        const target = messages.find((m) => {
+                          const d = new Date(m.readable_date)
+                          return (m.year || d.getFullYear()) === selectedYear && (d.getMonth() + 1) === month
+                        })
+                        if (target) {
+                          const el = document.getElementById(`msg-${target.message_id}`)
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }
+                      }}
+                      className="p-2 rounded-md text-sm bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    >
+                      {month}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 

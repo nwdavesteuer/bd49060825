@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Play, Pause, ChevronLeft, ChevronRight, Calendar, Heart, Star } from "lucide-react"
+import { supabase, TABLE_NAME } from "@/lib/supabase"
 
 interface AudioFile {
   filename: string
@@ -27,6 +28,9 @@ export default function DirectAudioPlayer({ selectedYear = null }: DirectAudioPl
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [activeTab, setActiveTab] = useState<"all" | "favorites">("all")
   const audioRef = useRef<HTMLAudioElement>(null)
+  const [messageText, setMessageText] = useState<string>("")
+  const [messageDate, setMessageDate] = useState<string>("")
+  const [loadingMessage, setLoadingMessage] = useState<boolean>(false)
 
   // Load audio files directly from the API
   useEffect(() => {
@@ -150,6 +154,8 @@ export default function DirectAudioPlayer({ selectedYear = null }: DirectAudioPl
     
     setSelectedFile(file)
     setIsPlaying(false)
+    // Load the corresponding message text for validation while listening
+    loadMessageForFile(file).catch((err) => console.error("Failed to load message text:", err))
     
     if (audioRef.current) {
       audioRef.current.pause()
@@ -161,6 +167,28 @@ export default function DirectAudioPlayer({ selectedYear = null }: DirectAudioPl
           console.error('Error playing audio:', err)
         })
       }, 100)
+    }
+  }
+
+  async function loadMessageForFile(file: AudioFile) {
+    try {
+      setLoadingMessage(true)
+      setMessageText("")
+      setMessageDate("")
+      const messageIdNum = Number.parseInt(file.messageId)
+      const { data, error } = await supabase
+        .from(TABLE_NAME)
+        .select("text, readable_date")
+        .eq("message_id", messageIdNum)
+        .limit(1)
+      if (error) throw error
+      const row = data?.[0]
+      setMessageText(row?.text || "")
+      setMessageDate(row?.readable_date || "")
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingMessage(false)
     }
   }
 
@@ -375,6 +403,23 @@ export default function DirectAudioPlayer({ selectedYear = null }: DirectAudioPl
                     Next
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
+                </div>
+
+                {/* Message text preview for validation */}
+                <div className="mt-6">
+                  <h3 className="text-sm font-medium mb-2">Message Text</h3>
+                  {loadingMessage ? (
+                    <p className="text-sm text-muted-foreground">Loading text…</p>
+                  ) : messageText ? (
+                    <ScrollArea className="h-40 border rounded-md p-3 bg-muted/20">
+                      <p className="text-sm whitespace-pre-wrap">{messageText}</p>
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No text found for this message.</p>
+                  )}
+                  {messageDate && (
+                    <p className="text-xs text-muted-foreground mt-2">Date: {new Date(messageDate).toLocaleString()}</p>
+                  )}
                 </div>
               </Card>
             </div>

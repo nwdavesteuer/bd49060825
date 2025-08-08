@@ -458,14 +458,14 @@ export default function CinematicLoveLetters() {
 
   return (
     <div
-      className="min-h-screen transition-all duration-[3000ms] ease-in-out relative overflow-hidden"
+     className="min-h-screen transition-all duration-[3000ms] ease-in-out relative overflow-hidden"
       style={getBackgroundStyle()}
       onMouseMove={handleMouseMove}
       onClick={() => setShowControls(true)}
     >
       {/* Paper texture overlay */}
       <div
-        className={`absolute inset-0 transition-opacity duration-[3000ms] ease-in-out ${
+       className={`absolute inset-0 transition-opacity duration-[3000ms] ease-in-out ${
           phase === "transforming" || phase === "letter" ? "opacity-20" : "opacity-0"
         }`}
         style={{
@@ -672,7 +672,7 @@ function MessageBubble({ message, phase, delay }: MessageBubbleProps) {
       className={`flex ${message.isSentByDavid ? "justify-end" : "justify-start"}`}
     >
       <motion.div
-        className={`max-w-xs lg:max-w-md relative transition-all duration-[3000ms] ease-in-out ${
+       className={`max-w-xs lg:max-w-md relative transition-all duration-[3000ms] ease-in-out ${
           isTransformed ? "bg-transparent" : message.isSentByDavid ? "bg-blue-500" : "bg-gray-200"
         }`}
         style={{

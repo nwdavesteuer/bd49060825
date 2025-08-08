@@ -1,0 +1,13 @@
+archive/
+backups/
+final_datasets/
+temp/
+**/*.pickle
+**/*.pkl
+**/*.csv
+!data/2015-david-love-notes-for-audio.csv
+!data/david-love-notes-for-audio.csv
+**/*.pickle
+**/*.zip
+**/*.tar
+**/*.tar.gz

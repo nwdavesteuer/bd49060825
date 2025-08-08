@@ -6,7 +6,8 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "cleanup:zero-text": "node scripts/cleanup-fix-zero-text.mjs"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
@@ -76,6 +77,10 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
   },
+  "trustedDependencies": [
+    "sharp",
+    "@ffmpeg-installer/linux-x64"
+  ],
   "pnpm": {
     "ignoredBuiltDependencies": [
       "@ffmpeg-installer/darwin-arm64"

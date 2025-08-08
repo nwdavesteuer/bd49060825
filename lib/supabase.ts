@@ -1,11 +1,13 @@
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://fblwndzprmvjajayxjln.supabase.co"
-const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZibHduZHpwcm12amFqYXl4amxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0MjEwODAsImV4cCI6MjA2NDk5NzA4MH0.kUJ2La2IkvcX86_bnBbgI17VvqLvoKEhiTgqQrxF6zY"
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn("Supabase env vars are not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.")
+}
+
+export const supabase = createClient(supabaseUrl || "", supabaseAnonKey || "")
 
 export const TABLE_NAME = "fulldata_set"
 
@@ -120,7 +122,13 @@ export async function fetchAllMessages(limit?: number) {
       const messageDate = convertTimestampToDate(msg.readable_date)
 
       return {
-        text: msg.text || "",
+        // Normalize text: treat numeric 0 or string "0" as empty
+        text: ((): string => {
+          const raw = (msg as any).text
+          if (raw === 0 || raw === "0") return ""
+          if (raw == null) return ""
+          return String(raw)
+        })(),
         data: msg.data || "",
         date_read: msg.date_read || "",
         is_from_me: msg.is_from_me,

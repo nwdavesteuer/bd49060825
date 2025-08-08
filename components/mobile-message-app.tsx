@@ -129,6 +129,11 @@ function MessageBubble({
 }) {
   const [audioFilename, setAudioFilename] = useState<string | null>(null)
   const [hasAudio, setHasAudio] = useState(false)
+  
+  // Normalize text once and decide whether this bubble has any content to render
+  const rawText = (message as any).text
+  const displayText = typeof rawText === 'string' ? rawText : (rawText == null ? '' : String(rawText))
+  const hasText = displayText.trim().length > 0 && displayText.trim() !== '0'
 
   // Load audio filename asynchronously
   useEffect(() => {
@@ -182,6 +187,11 @@ function MessageBubble({
     loadAudioFilename()
   }, [message, showLoveNotes])
 
+  // If there is no text and no audio to show, skip rendering this bubble entirely
+  if (!hasText && !(showLoveNotes && hasAudio)) {
+    return null
+  }
+
   const getCornerClasses = () => {
     if (position === "single") return "rounded-2xl"
     if (position === "first") return isFromMe ? "rounded-2xl rounded-br-md" : "rounded-2xl rounded-bl-md"
@@ -215,7 +225,11 @@ function MessageBubble({
     return `bg-gradient-to-r ${colorClass} bg-opacity-${Math.round(opacity * 100)}`
   }
 
-  const hasEmotionData = message.primary_emotion && message.emotion_confidence && message.emotion_confidence > 0.2
+  const hasEmotionData = !!(
+    message.primary_emotion &&
+    typeof message.emotion_confidence === 'number' &&
+    message.emotion_confidence > 0.2
+  )
   const isLoveNote = showLoveNotes && String(message.is_from_me) === "1" && hasAudio
 
   return (
@@ -235,12 +249,17 @@ function MessageBubble({
           ${searchMode === "love" && isLoveNote ? "ring-2 ring-pink-400 ring-opacity-50" : ""}
         `}
       >
-        {/* Message Text */}
-        {message.text && message.text !== "0" && (
-          <div className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
-            {message.text}
-          </div>
-        )}
+        {/* Message Text (avoid rendering numeric 0) */}
+        {(() => {
+          const raw = (message as any).text
+          const displayText = typeof raw === 'string' ? raw : (raw == null ? '' : String(raw))
+          const hasText = displayText.trim().length > 0 && displayText.trim() !== '0'
+          return hasText ? (
+            <div className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
+              {displayText}
+            </div>
+          ) : null
+        })()}
 
         {/* Audio Control for Love Notes */}
         {isLoveNote && audioFilename && (
@@ -253,7 +272,7 @@ function MessageBubble({
       </div>
       
       {/* Subtle emotion indicator - only on hover for high confidence */}
-      {hasEmotionData && (message.emotion_confidence || 0) > 0.2 && message.primary_emotion !== 'neutral' && (
+      {hasEmotionData && message.primary_emotion !== 'neutral' && (
         <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
       )}
     </div>
@@ -303,9 +322,11 @@ function MessageGroup({
           />
         )
       })}
-      <div className={`text-xs text-gray-400 mt-1 px-2 ${group.isFromMe ? "text-right" : "text-left"}`}>
-        {group.timeString}
-      </div>
+      {group.timeString && String(group.timeString).trim() !== '0' && (
+        <div className={`text-xs text-gray-400 mt-1 px-2 ${group.isFromMe ? "text-right" : "text-left"}`}>
+          {group.timeString}
+        </div>
+      )}
     </div>
   )
 }
@@ -697,7 +718,13 @@ export default function MobileMessageApp() {
 
             if (isValidDate) {
               normalizedMessages.push({
-                text: msg.text || "",
+                // Normalize text to avoid stray numeric zeros
+                text: ((): string => {
+                  const raw = (msg as any).text
+                  if (raw === 0 || raw === "0") return ""
+                  if (raw == null) return ""
+                  return String(raw)
+                })(),
                 data: msg.data || "",
                 date_read: msg.date_read || "",
                 is_from_me: msg.is_from_me,

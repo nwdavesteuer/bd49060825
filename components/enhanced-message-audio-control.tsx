@@ -65,24 +65,7 @@ export default function EnhancedMessageAudioControl({
   }
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      {/* Play/Pause Button */}
-      <Button
-        size="sm"
-        onClick={togglePlay}
-        className={`rounded-full w-6 h-6 p-0 transition-all duration-200 ${
-          isPlaying 
-            ? "bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600" 
-            : "bg-gray-600 hover:bg-gray-500"
-        }`}
-      >
-        {isPlaying ? (
-          <Pause className="h-2 w-2" />
-        ) : (
-          <Play className="h-2 w-2 ml-0.5" />
-        )}
-      </Button>
-
+    <div className={`relative inline-block ${className}`}>
       {/* Hidden Audio Element */}
       <audio
         ref={audioRef}
@@ -94,6 +77,22 @@ export default function EnhancedMessageAudioControl({
           setIsPlaying(false)
         }}
       />
+
+      {/* Corner Play Button with subtle ring */}
+      <button
+        aria-label={isPlaying ? 'Pause love note' : 'Play love note'}
+        onClick={togglePlay}
+        className={`absolute -top-3 -right-3 z-10 flex items-center justify-center w-8 h-8 rounded-full shadow-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+          isPlaying ? 'bg-gradient-to-r from-pink-500 to-red-500 text-white' : 'bg-primary text-primary-foreground'
+        }`}
+      >
+        {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3 ml-0.5" />}
+      </button>
+
+      {/* Progress halo */}
+      {isPlaying && (
+        <span className="absolute -top-3 -right-3 w-8 h-8 rounded-full ring-2 ring-pink-300 animate-pulse" />
+      )}
     </div>
   )
 } 

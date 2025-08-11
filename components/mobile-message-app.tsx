@@ -3,12 +3,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Search,
-  Menu,
-  MessageCircle,
-  Heart,
-} from "lucide-react"
+import { Search, Menu, MessageCircle, Heart } from "lucide-react"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { supabase, type Message, TABLE_NAME } from "@/lib/supabase"
 import DirectAudioPlayer from "./direct-audio-player"
 import EnhancedMessageAudioControl from "./enhanced-message-audio-control"
@@ -233,7 +229,7 @@ function MessageBubble({
   const isLoveNote = showLoveNotes && String(message.is_from_me) === "1" && hasAudio
 
   return (
-    <div className={`group relative ${isFromMe ? "ml-auto" : "mr-auto"} max-w-[85%] md:max-w-[70%]`}>
+    <div id={`msg-${message.message_id}`} className={`group relative ${isFromMe ? "ml-auto" : "mr-auto"} max-w-[85%] md:max-w-[70%]`}>
       <div
         className={`
           px-4 py-2 md:px-6 md:py-3 
@@ -367,6 +363,23 @@ export default function MobileMessageApp() {
   const [selectedYear, setSelectedYear] = useState<number | null>(2015)
   const [yearData, setYearData] = useState<YearData[]>([])
   const [messagesExpanded, setMessagesExpanded] = useState(true)
+  const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const chipClass =
+    "h-9 rounded-md border bg-muted/40 px-3 text-sm hover:bg-muted transition-colors data-[state=on]:bg-primary data-[state=on]:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+  const [selectedMonthsSidebar, setSelectedMonthsSidebar] = useState<string[]>([])
+
+  const scrollToFirstOfMonth = (year: number, month: number) => {
+    const target = messages.find((m) => {
+      const d = new Date(m.readable_date)
+      const y = (m as any).year || d.getFullYear()
+      const mo = d.getMonth() + 1
+      return y === year && mo === month
+    })
+    if (target) {
+      const el = document.getElementById(`msg-${target.message_id}`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
   const [searchFilters, setSearchFilters] = useState({
     sender: "",
     dateRange: "",
@@ -1668,90 +1681,45 @@ export default function MobileMessageApp() {
           {/* Section: Search */}
           <div className="mb-6">
             <h3 className="text-sm font-medium text-gray-300 mb-3">Search</h3>
-            <div className="space-y-2">
-              <button
-                onClick={() => setSearchMode("all")}
-                className={`w-full text-left p-3 rounded-lg transition-colors ${
-                  searchMode === "all"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span>🌍</span>
-                  <span>All Messages</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setShowLoveNotes(!showLoveNotes)}
-                className={`w-full text-left p-3 rounded-lg transition-colors ${
-                  showLoveNotes
-                    ? "bg-gradient-to-r from-pink-500 to-red-500 text-white"
-                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Heart className="h-4 w-4" />
-                    <span>Love Notes</span>
-                  </div>
-                  {showLoveNotes && (
-                    <span className="text-xs opacity-75">🎵 Audio</span>
-                  )}
-                </div>
-              </button>
-            </div>
+            <ToggleGroup type="single" value={showLoveNotes ? 'love' : 'all'} onValueChange={(v)=>{
+              if (!v) return; if (v === 'love') setShowLoveNotes(true); else setShowLoveNotes(false)
+            }} className="grid grid-cols-1 gap-2">
+              <ToggleGroupItem value="all" aria-label="All Messages" className={`justify-start ${chipClass}`}>
+                <span className="mr-2">🌍</span> All Messages
+              </ToggleGroupItem>
+              <ToggleGroupItem value="love" aria-label="Love Notes" className={`justify-start ${chipClass}`}>
+                <Heart className="h-4 w-4 mr-2" /> Love Notes
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
 
           {/* Section: Year & Month Filter */}
           <div className="mb-6">
             <h3 className="text-sm font-medium text-gray-300 mb-3">Year Filter</h3>
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              <button
-                onClick={() => selectYear(null)}
-                className={`p-2 rounded-md text-sm transition-colors ${
-                  selectedYear === null ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }`}
-              >
-                All
-              </button>
-              {yearData.map((yearInfo) => (
-                <button
-                  key={yearInfo.year}
-                  onClick={() => selectYear(yearInfo.year)}
-                  className={`p-2 rounded-md text-sm transition-colors ${
-                    selectedYear === yearInfo.year ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                  }`}
-                >
-                  {yearInfo.year}
-                </button>
+            <ToggleGroup type="single" value={selectedYear?.toString() ?? 'all'} onValueChange={(v)=>{
+              if (!v) return; if (v==='all') selectYear(null); else selectYear(parseInt(v))
+            }} className="grid grid-cols-3 gap-2 mb-3">
+              <ToggleGroupItem value={'all'} aria-label="All Years" className={chipClass}>All</ToggleGroupItem>
+              {yearData.slice(0,9).map((y) => (
+                <ToggleGroupItem key={y.year} value={String(y.year)} className={chipClass}>{y.year}</ToggleGroupItem>
               ))}
-            </div>
+            </ToggleGroup>
 
             {selectedYear && (
               <>
                 <p className="text-xs text-gray-400 mb-2">Months</p>
-                <div className="grid grid-cols-4 gap-2">
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-                    <button
-                      key={month}
-                      onClick={() => {
-                        // navigate to first message of selected month by filtering messages
-                        const target = messages.find((m) => {
-                          const d = new Date(m.readable_date)
-                          return (m.year || d.getFullYear()) === selectedYear && (d.getMonth() + 1) === month
-                        })
-                        if (target) {
-                          const el = document.getElementById(`msg-${target.message_id}`)
-                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                        }
-                      }}
-                      className="p-2 rounded-md text-sm bg-gray-700 text-gray-300 hover:bg-gray-600"
-                    >
-                      {month}
-                    </button>
+                <ToggleGroup type="multiple" value={selectedMonthsSidebar} onValueChange={(vals)=>{
+                  setSelectedMonthsSidebar(vals)
+                  if (vals.length > 0 && selectedYear) {
+                    const latest = vals[vals.length-1]
+                    const month = MONTH_LABELS.indexOf(latest) + 1
+                    if (month>0) scrollToFirstOfMonth(selectedYear, month)
+                  }
+                }} className="grid grid-cols-4 gap-2">
+                  {MONTH_LABELS.map((label)=> (
+                    <ToggleGroupItem key={label} value={label} className={chipClass}>{label}</ToggleGroupItem>
                   ))}
-                </div>
+                </ToggleGroup>
               </>
             )}
           </div>
@@ -1843,133 +1811,36 @@ export default function MobileMessageApp() {
 
       {/* Mobile Sidebar - Only on mobile */}
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden">
-          <div className="fixed left-0 top-0 h-full w-80 bg-gray-800 border-r border-gray-700 p-4">
-            <div className="flex justify-between items-center mb-6">
+        <div className="fixed inset-0 bg-black/60 z-40 md:hidden">
+          <div className="fixed left-0 top-0 h-full w-80 bg-gray-800 border-r border-gray-700 p-4 flex flex-col">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold">Messages</h2>
-              <Button onClick={() => setSidebarOpen(false)} className="bg-red-600 hover:bg-red-700">
-                ×
-              </Button>
+              <Button onClick={() => setSidebarOpen(false)} variant="destructive">Close</Button>
             </div>
-            
-            {/* Love Notes Section */}
-            <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-300 mb-3">💕 Love Notes</h3>
-              <div className="space-y-2">
-                <button
-                  onClick={() => {
-                    setShowLoveNotes(!showLoveNotes)
-                    setSidebarOpen(false)
-                  }}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    showLoveNotes
-                      ? "bg-gradient-to-r from-pink-500 to-red-500 text-white"
-                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Heart className="h-4 w-4" />
-                    <span>David's Love Notes</span>
-                  </div>
-                </button>
-                {showLoveNotes && (
-                  <button
-                    onClick={() => setShowContext(!showContext)}
-                    className={`w-full text-left p-3 rounded-lg transition-colors ${
-                      showContext
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>💬</span>
-                      <span>Show Context</span>
-                    </div>
-                  </button>
+            <div className="flex-1 overflow-y-auto space-y-6">
+              <div>
+                <h3 className="text-sm font-medium text-gray-300 mb-3">Search</h3>
+                <ToggleGroup type="single" value={showLoveNotes ? 'love' : 'all'} onValueChange={(v)=>{ if (!v) return; setShowLoveNotes(v==='love') }} className="grid grid-cols-1 gap-2">
+                  <ToggleGroupItem value="all" className="justify-start"><span className="mr-2">🌍</span> All Messages</ToggleGroupItem>
+                  <ToggleGroupItem value="love" className="justify-start"><Heart className="h-4 w-4 mr-2"/> Love Notes</ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-300 mb-3">Year Filter</h3>
+                <ToggleGroup type="single" value={selectedYear?.toString() ?? 'all'} onValueChange={(v)=>{ if (!v) return; if (v==='all') selectYear(null); else selectYear(parseInt(v)) }} className="grid grid-cols-3 gap-2 mb-3">
+                  <ToggleGroupItem value={'all'} aria-label="All Years">All</ToggleGroupItem>
+                  {yearData.slice(0,9).map((y)=> (
+                    <ToggleGroupItem key={y.year} value={String(y.year)}>{y.year}</ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+                {selectedYear && (
+                  <>
+                    <p className="text-xs text-gray-400 mb-2">Months</p>
+                    <ToggleGroup type="multiple" value={selectedMonthsSidebar} onValueChange={(vals)=>{ setSelectedMonthsSidebar(vals); if (vals.length>0 && selectedYear){ const latest=vals[vals.length-1]; const m=MONTH_LABELS.indexOf(latest)+1; if (m>0) scrollToFirstOfMonth(selectedYear, m) } }} className="grid grid-cols-4 gap-2">
+                      {MONTH_LABELS.map((label)=> (<ToggleGroupItem key={label} value={label}>{label}</ToggleGroupItem>))}
+                    </ToggleGroup>
+                  </>
                 )}
-              </div>
-            </div>
-            
-            {/* Search Mode Toggle */}
-            <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-300 mb-3">Search Mode</h3>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setSearchMode("all")}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    searchMode === "all"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>🌍</span>
-                    <span>All Messages</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => setSearchMode("year")}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    searchMode === "year"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>📅</span>
-                    <span>This Year Only</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => setSearchMode("love")}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    searchMode === "love"
-                      ? "bg-pink-600 text-white"
-                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>💕</span>
-                    <span>Love Notes</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-            
-            {/* Year Filter */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-300 mb-3">Year Filter</h3>
-              <div className="space-y-2">
-                <button
-                  onClick={() => selectYear(null)}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    selectedYear === null
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span>All Years</span>
-                    <span className="text-sm opacity-75">{messages.length}</span>
-                  </div>
-                </button>
-                
-                {yearData.map((yearInfo) => (
-                  <button
-                    key={yearInfo.year}
-                    onClick={() => selectYear(yearInfo.year)}
-                    className={`w-full text-left p-3 rounded-lg transition-colors ${
-                      selectedYear === yearInfo.year
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <span>{yearInfo.year}</span>
-                      <span className="text-sm opacity-75">{yearInfo.count}</span>
-                    </div>
-                  </button>
-                ))}
               </div>
             </div>
           </div>

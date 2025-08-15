@@ -7,7 +7,8 @@
 import fs from 'fs'
 import path from 'path'
 
-const CSV_DIR = path.join(process.cwd(), 'public', 'data')
+// Use authoritative data directory (prefer fixed CSVs when present)
+const CSV_DIR = path.join(process.cwd(), 'data')
 const INPUT_DIR = path.join(process.cwd(), 'temp', 'hume-input')
 const WAV_DIR = path.join(process.cwd(), 'public', 'audio', 'love-notes')
 const MP3_DIR = path.join(process.cwd(), 'public', 'audio', 'love-notes-mp3')
@@ -51,8 +52,10 @@ function parseCsv(filePath) {
       } else { cur += ch }
     }
     cols.push(cur)
-    const [id, text, date, emotion] = cols.map(c => c.replace(/^"|"$/g, ''))
-    rows.push({ id: parseInt(id, 10), text, date, emotion: emotion || 'love' })
+    const [idRaw, text, date, emotion] = cols.map(c => c.replace(/^"|"$/g, ''))
+    const id = String(idRaw).trim()
+    if (!id || id.toLowerCase() === 'undefined' || id.toLowerCase() === 'nan') continue
+    rows.push({ id, text, date, emotion: emotion || 'love' })
   }
   return rows
 }
@@ -68,7 +71,9 @@ async function main() {
 
   const planLines = []
   for (const year of years) {
-    const csvPath = path.join(CSV_DIR, `${year}-david-love-notes-for-audio.csv`)
+    const fixed = path.join(CSV_DIR, `${year}-david-love-notes-for-audio-fixed.csv`)
+    const standard = path.join(CSV_DIR, `${year}-david-love-notes-for-audio.csv`)
+    const csvPath = fs.existsSync(fixed) ? fixed : standard
     if (!fs.existsSync(csvPath)) {
       console.warn(`CSV not found for ${year}: ${csvPath}`)
       continue

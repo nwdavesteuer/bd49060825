@@ -17,6 +17,8 @@ const csvCache: Record<number, Map<string, string>> = {}
 // Cache for actual audio files to avoid repeated API calls
 let audioFilesCache: AudioFileInfo[] | null = null
 let audioFilenameSetCache: Set<string> | null = null
+let audioFilenameByPrefixCache: Map<string, string> | null = null
+const csvDateToFilenameCache: Record<number, Map<number, string>> = {}
 
 /**
  * Load CSV data for a specific year
@@ -36,6 +38,7 @@ async function loadCSVForYear(year: number): Promise<Map<string, string>> {
     const csvText = await response.text()
     const lines = csvText.split('\n').slice(1) // Skip header
     const mapping = new Map<string, string>()
+    const dateToFilename = new Map<number, string>()
 
     for (const line of lines) {
       if (line.trim()) {
@@ -60,8 +63,17 @@ async function loadCSVForYear(year: number): Promise<Map<string, string>> {
         if (fields.length >= 5) {
           const id = fields[0].replace(/"/g, '').trim()
           const filename = fields[4].replace(/"/g, '').trim()
+          const dateISO = fields[2].replace(/"/g, '').trim()
           if (id && filename && id !== 'undefined') {
             mapping.set(id, filename)
+          }
+          if (dateISO) {
+            const t = Date.parse(dateISO)
+            if (!Number.isNaN(t)) {
+              // normalize to seconds
+              const key = Math.floor(t / 1000)
+              if (!dateToFilename.has(key)) dateToFilename.set(key, filename)
+            }
           }
         }
       }
@@ -69,6 +81,7 @@ async function loadCSVForYear(year: number): Promise<Map<string, string>> {
 
     console.log(`📊 Loaded ${mapping.size} CSV mappings for year ${year}`)
     csvCache[year] = mapping
+    csvDateToFilenameCache[year] = dateToFilename
     return mapping
   } catch (error) {
     console.error(`Error loading CSV for year ${year}:`, error)
@@ -126,7 +139,48 @@ export async function getAudioFilenameSet(): Promise<Set<string>> {
   if (audioFilenameSetCache) return audioFilenameSetCache
   const files = await getAvailableAudioFilesWithMetadata()
   audioFilenameSetCache = new Set(files.map(f => f.filename))
+  audioFilenameByPrefixCache = new Map()
+  for (const f of files) {
+    const prefix = f.filename.replace(/\.mp3$/, '')
+    audioFilenameByPrefixCache.set(prefix, f.filename)
+  }
   return audioFilenameSetCache
+}
+
+/** Resolve the actual filename for a given year/messageId.
+ * Returns exact match if present, otherwise a best-effort by prefix
+ */
+export async function resolveAudioFilename(year: number, messageId: string): Promise<string | null> {
+  const set = await getAudioFilenameSet()
+  const exact = `david-${year}-love-note-${messageId}.mp3`
+  if (set.has(exact)) return exact
+  // Fallback: some files may have CLI suffixes appended; try prefix match
+  const prefix = `david-${year}-love-note-${messageId}`
+  if (!audioFilenameByPrefixCache) return null
+  for (const [p, fname] of audioFilenameByPrefixCache.entries()) {
+    if (p.startsWith(prefix)) return fname
+  }
+  return null
+}
+
+/** Resolve filename by timestamp using year CSV when IDs don't match */
+export async function resolveAudioFilenameByTimestamp(year: number, readableDate: string | Date): Promise<string | null> {
+  const csvMap = await loadCSVForYear(year)
+  // Ensure date cache exists
+  const dateMap = csvDateToFilenameCache[year]
+  if (!dateMap) return null
+  const t = typeof readableDate === 'string' ? Date.parse(readableDate) : readableDate.getTime()
+  if (Number.isNaN(t)) return null
+  const sec = Math.floor(t / 1000)
+  // Try exact second
+  if (dateMap.has(sec)) return dateMap.get(sec) || null
+  // Try within +/- 5 minutes
+  const window = 5 * 60
+  for (let delta = 1; delta <= window; delta++) {
+    if (dateMap.has(sec + delta)) return dateMap.get(sec + delta) || null
+    if (dateMap.has(sec - delta)) return dateMap.get(sec - delta) || null
+  }
+  return null
 }
 
 /**

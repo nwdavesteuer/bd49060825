@@ -9,7 +9,7 @@ import { supabase, type Message, TABLE_NAME } from "@/lib/supabase"
 import DirectAudioPlayer from "./direct-audio-player"
 import EnhancedLoveNotesAudioPlayer from "@/components/enhanced-love-notes-audio-player"
 import EnhancedMessageAudioControl from "./enhanced-message-audio-control"
-import { getAvailableAudioFiles, getAudioFilename, checkMultipleAudioFiles } from "@/lib/audio-file-manager"
+import { getAvailableAudioFiles, getAudioFilename, checkMultipleAudioFiles, getAudioFilenameSet, resolveAudioFilename, resolveAudioFilenameByTimestamp } from "@/lib/audio-file-manager"
 import { useAudioStore } from "@/lib/audio-state-manager"
 
 interface MessageGroup {
@@ -150,29 +150,18 @@ function MessageBubble({
             year: messageYear,
             text_preview: message.text?.substring(0, 50)
           })
-          const filename = await getAudioFilename(messageId, messageYear)
-          
-          // Check if the file exists using the new consistent naming pattern
-          console.log(`🔍 Checking for audio file: /audio/love-notes-mp3/${filename}`)
-          
-          // Try a simple HEAD request without cache busting first
-          try {
-            const response = await fetch(`/audio/love-notes-mp3/${filename}`, { 
-              method: 'HEAD'
-            })
-            const exists = response.ok
-            
-            if (exists) {
-              console.log(`✅ Audio file found: ${filename}`)
-              setAudioFilename(filename)
-              setHasAudio(true)
-            } else {
-              console.log(`❌ Audio file not found: ${filename} (status: ${response.status})`)
-              setAudioFilename(null)
-              setHasAudio(false)
-            }
-          } catch (fetchError) {
-            console.error(`❌ Error checking audio file ${filename}:`, fetchError)
+          // Resolve actual filename from manifest (handles suffixes)
+          let resolved = await resolveAudioFilename(messageYear, messageId)
+          if (!resolved) {
+            // Fallback to time-based resolution using CSV when IDs mismatch
+            resolved = await resolveAudioFilenameByTimestamp(messageYear, message.readable_date)
+          }
+          if (resolved) {
+            console.log(`✅ Audio file resolved: ${resolved}`)
+            setAudioFilename(resolved)
+            setHasAudio(true)
+          } else {
+            console.log(`❌ No audio for message ${messageId} in ${messageYear}`)
             setAudioFilename(null)
             setHasAudio(false)
           }
@@ -231,7 +220,7 @@ function MessageBubble({
     typeof message.emotion_confidence === 'number' &&
     message.emotion_confidence > 0.2
   )
-  const isLoveNote = showLoveNotes && String(message.is_from_me) === "1" && hasAudio
+  const isLoveNote = String(message.is_from_me) === "1" && hasAudio
 
   return (
     <div id={`msg-${message.message_id}`} className={`group relative ${isFromMe ? "ml-auto" : "mr-auto"} max-w-[85%] md:max-w-[70%]`}>
@@ -250,16 +239,18 @@ function MessageBubble({
           ${searchMode === "love" && isLoveNote ? "ring-2 ring-pink-400 ring-opacity-50" : ""}
         `}
       >
-        {/* Favorite toggle */}
-        <div className={`absolute ${isFromMe ? 'left-[-28px]' : 'right-[-28px]'} top-0`}> 
-          <button
-            onClick={() => doToggle(Number(message.message_id))}
-            className={`text-sm ${isFav(Number(message.message_id)) ? 'text-yellow-400' : 'text-gray-500 hover:text-gray-300'}`}
-            title={isFav(Number(message.message_id)) ? 'Unfavorite' : 'Favorite'}
-          >
-            <Star className="w-4 h-4" />
-          </button>
-        </div>
+        {/* Favorite toggle - only show in Love Notes mode and for your messages with audio */}
+        {showLoveNotes && isLoveNote && (
+          <div className={`absolute ${isFromMe ? 'left-[-28px]' : 'right-[-28px]'} top-0`}>
+            <button
+              onClick={() => doToggle(Number(message.message_id))}
+              className={`text-sm ${isFav(Number(message.message_id)) ? 'text-yellow-400' : 'text-gray-500 hover:text-gray-300'}`}
+              title={isFav(Number(message.message_id)) ? 'Unfavorite' : 'Favorite'}
+            >
+              <Star className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Message Text (avoid rendering numeric 0) */}
         {(() => {
@@ -274,7 +265,7 @@ function MessageBubble({
         })()}
 
         {/* Audio Control for Love Notes */}
-        {isLoveNote && audioFilename && (
+        {showLoveNotes && isLoveNote && audioFilename && (
           <EnhancedMessageAudioControl
             audioFile={audioFilename}
             messageId={String(message.message_id)}
@@ -1001,7 +992,8 @@ export default function MobileMessageApp() {
 
     // Favorites filter (applies to any mode when active)
     if (showFavoritesOnly) {
-      filtered = filtered.filter((msg) => favorites.has(msg.message_id as unknown as number))
+      // Favorites should only apply to Love Notes view
+      filtered = filtered.filter((msg) => String(msg.is_from_me) === "1" && favorites.has(msg.message_id as unknown as number))
     }
     return filtered
   }, [messages, selectedYear, searchMode, searchQuery, showLoveNotes, showFavoritesOnly, favorites, searchFilters])
@@ -1133,22 +1125,14 @@ export default function MobileMessageApp() {
   // Love Notes Audio Functions
   // Note: Using imported getAudioFilename from @/lib/audio-file-manager
 
-  // Check if audio file exists for a message
+  // Check using manifest (no HEAD request)
   const checkAudioFileExists = useCallback(async (message: Message) => {
-    // Only check David's messages
     if (String(message.is_from_me) !== "1") return false
-    
     const messageYear = message.year || new Date(message.readable_date).getFullYear()
     const messageId = String(message.message_id)
-    
-    // Use the new consistent naming pattern to check if the file exists
     const filename = `david-${messageYear}-love-note-${messageId}.mp3`
-    try {
-      const response = await fetch(`/audio/love-notes/${filename}`, { method: 'HEAD' })
-      return response.ok
-    } catch (error) {
-      return false
-    }
+    const set = await getAudioFilenameSet()
+    return set.has(filename)
   }, [])
 
   const handlePlayAll = () => {
@@ -1180,35 +1164,21 @@ export default function MobileMessageApp() {
   // Async effect to load audio files
   useEffect(() => {
     const loadAudioFiles = async () => {
-      if (!showLoveNotes) {
-        setCurrentAudioFiles([])
-        return
-      }
-      
-      const audioFiles: string[] = []
-      
+      if (!showLoveNotes) { setCurrentAudioFiles([]); return }
+      const set = await getAudioFilenameSet()
+      const files: string[] = []
       for (const message of finalFilteredMessages) {
-        if (String(message.is_from_me) === "1") {
-          const messageYear = message.year || new Date(message.readable_date).getFullYear()
-          const messageId = String(message.message_id)
-          
-          try {
-            const filename = `david-${messageYear}-love-note-${messageId}.mp3`
-            const response = await fetch(`/audio/love-notes-mp3/${filename}`, { method: 'HEAD' })
-            const hasAudio = response.ok
-            if (hasAudio) {
-              audioFiles.push(filename)
-            }
-          } catch (error) {
-            console.error(`Error checking audio for message ${messageId}:`, error)
-          }
+        if (String(message.is_from_me) !== "1") continue
+        const y = message.year || new Date(message.readable_date).getFullYear()
+        const id = String(message.message_id)
+        let resolved = await resolveAudioFilename(y, id)
+        if (!resolved) {
+          resolved = await resolveAudioFilenameByTimestamp(y, message.readable_date)
         }
+        if (resolved) files.push(resolved)
       }
-      
-      // Update the audio files state
-      setCurrentAudioFiles(audioFiles)
+      setCurrentAudioFiles(files)
     }
-    
     loadAudioFiles()
   }, [finalFilteredMessages, showLoveNotes])
 
@@ -1766,7 +1736,7 @@ export default function MobileMessageApp() {
 
             {/* Favorites Toggle */}
             <div className="mt-3">
-              <ToggleGroup type="single" value={showFavoritesOnly ? 'fav' : 'any'} onValueChange={(v)=>{ if (!v) return; setShowFavoritesOnly(v==='fav') }} className="grid grid-cols-1 gap-2">
+              <ToggleGroup type="single" value={showFavoritesOnly ? 'fav' : 'any'} onValueChange={(v)=>{ if (!v) return; setShowFavoritesOnly(v==='fav') }} className="grid grid-cols-1 gap-2" disabled={!showLoveNotes}>
                 <ToggleGroupItem value="any" className={`justify-start ${chipClass}`}>
                   <span className="mr-2">⭐️</span> Any
                 </ToggleGroupItem>

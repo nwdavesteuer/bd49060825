@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Play, Pause } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAudioStore } from '@/lib/audio-state-manager'
+import { getAudioFilenameSet, resolveAudioFilename } from '@/lib/audio-file-manager'
 
 interface EnhancedMessageAudioControlProps {
   audioFile: string
@@ -23,23 +24,37 @@ export default function EnhancedMessageAudioControl({
   const [hasAudio, setHasAudio] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Check if audio file exists
+  // Check if audio file exists using the manifest (no HEAD requests)
   useEffect(() => {
-    const checkAudioExists = async () => {
+    let mounted = true
+    const check = async () => {
+      setIsLoading(true)
       try {
-        setIsLoading(true)
-        const response = await fetch(`/audio/love-notes-mp3/${audioFile}`, { 
-          method: 'HEAD'
-        })
-        setHasAudio(response.ok)
+        // Resolve in case a suffix was added during CLI write
+        const parts = audioFile.match(/david-(\d{4})-love-note-(.+)\.mp3$/)
+        let exists = false
+        let resolved = audioFile
+        if (parts) {
+          const year = parseInt(parts[1])
+          const id = parts[2]
+          const fname = await resolveAudioFilename(year, id)
+          if (fname) {
+            resolved = fname
+          }
+        }
+        const set = await getAudioFilenameSet()
+        if (!mounted) return
+        exists = set.has(resolved)
+        setHasAudio(exists)
       } catch (error) {
         console.error('Error checking audio file:', error)
-        setHasAudio(false)
+        if (mounted) setHasAudio(false)
       } finally {
-        setIsLoading(false)
+        if (mounted) setIsLoading(false)
       }
     }
-    checkAudioExists()
+    check()
+    return () => { mounted = false }
   }, [audioFile])
 
   const togglePlay = (e: React.MouseEvent) => {

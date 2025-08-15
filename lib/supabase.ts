@@ -26,7 +26,7 @@ export interface Message {
   account: string
   contact_id: string
   readable_date: string
-  message_id?: number
+  message_id?: number | string
   date?: string
   message_type?: string
   year?: number
@@ -118,8 +118,13 @@ export async function fetchAllMessages(limit?: number) {
 
     console.log("Raw query returned:", data?.length, "messages")
 
-    const normalizedMessages = (data || []).map((msg: any) => {
+    const normalizedMessages = (data || []).map((msg: any, idx: number) => {
       const messageDate = convertTimestampToDate(msg.readable_date)
+      // Prefer stable database message id. Fall back through common fields.
+      const rawId = (msg as any).message_id ?? (msg as any).id ?? (msg as any).rowid ?? (msg as any).ROWID
+      const normalizedId = rawId != null && rawId !== '' && rawId !== 'undefined'
+        ? (Number.isFinite(Number(rawId)) ? Number(rawId) : String(rawId))
+        : undefined
 
       return {
         // Normalize text: treat numeric 0 or string "0" as empty
@@ -142,7 +147,7 @@ export async function fetchAllMessages(limit?: number) {
         account: msg.account || "",
         contact_id: msg.contact_id || "",
         readable_date: msg.readable_date || "",
-        message_id: Math.random(),
+        message_id: normalizedId ?? `${messageDate.getTime()}_${idx}`,
         date: messageDate.toISOString(),
         message_type: msg.has_attachments && msg.has_attachments !== "0" ? "image" : "text",
         year: messageDate.getFullYear(),

@@ -8,7 +8,10 @@ export async function GET(
 ) {
   try {
     const { year } = await params
-    const csvPath = path.join(process.cwd(), 'data', `${year}-david-love-notes-for-audio.csv`)
+    // Prefer the corrected CSV when present to match the render plan
+    const fixedPath = path.join(process.cwd(), 'data', `${year}-david-love-notes-for-audio-fixed.csv`)
+    const standardPath = path.join(process.cwd(), 'data', `${year}-david-love-notes-for-audio.csv`)
+    const csvPath = fs.existsSync(fixedPath) ? fixedPath : standardPath
     
     if (!fs.existsSync(csvPath)) {
       return NextResponse.json({ error: 'CSV file not found' }, { status: 404 })

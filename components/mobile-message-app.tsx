@@ -3,10 +3,11 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Menu, MessageCircle, Heart } from "lucide-react"
+import { Search, Menu, MessageCircle, Heart, Star } from "lucide-react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { supabase, type Message, TABLE_NAME } from "@/lib/supabase"
 import DirectAudioPlayer from "./direct-audio-player"
+import EnhancedLoveNotesAudioPlayer from "@/components/enhanced-love-notes-audio-player"
 import EnhancedMessageAudioControl from "./enhanced-message-audio-control"
 import { getAvailableAudioFiles, getAudioFilename, checkMultipleAudioFiles } from "@/lib/audio-file-manager"
 import { useAudioStore } from "@/lib/audio-state-manager"
@@ -123,6 +124,10 @@ function MessageBubble({
   onPause?: () => void
   onEnded?: () => void
 }) {
+  // Favorites helpers via global injected functions (defined in root component)
+  const favFns = (typeof window !== 'undefined') ? (window as any).__favFns as | { toggle: (id: number) => void; has: (id: number) => boolean } | undefined : undefined
+  const isFav = (id: number) => (favFns ? favFns.has(id) : false)
+  const doToggle = (id: number) => { if (favFns) favFns.toggle(id) }
   const [audioFilename, setAudioFilename] = useState<string | null>(null)
   const [hasAudio, setHasAudio] = useState(false)
   
@@ -245,6 +250,17 @@ function MessageBubble({
           ${searchMode === "love" && isLoveNote ? "ring-2 ring-pink-400 ring-opacity-50" : ""}
         `}
       >
+        {/* Favorite toggle */}
+        <div className={`absolute ${isFromMe ? 'left-[-28px]' : 'right-[-28px]'} top-0`}> 
+          <button
+            onClick={() => doToggle(Number(message.message_id))}
+            className={`text-sm ${isFav(Number(message.message_id)) ? 'text-yellow-400' : 'text-gray-500 hover:text-gray-300'}`}
+            title={isFav(Number(message.message_id)) ? 'Unfavorite' : 'Favorite'}
+          >
+            <Star className="w-4 h-4" />
+          </button>
+        </div>
+
         {/* Message Text (avoid rendering numeric 0) */}
         {(() => {
           const raw = (message as any).text
@@ -417,7 +433,30 @@ export default function MobileMessageApp() {
   
   // Love Notes Audio State
   const [showLoveNotes, setShowLoveNotes] = useState(false)
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
+  const [favorites, setFavorites] = useState<Set<number>>(()=>{
+    if (typeof window === 'undefined') return new Set()
+    try { const raw = localStorage.getItem('favorites'); if (!raw) return new Set(); return new Set(JSON.parse(raw) as number[]) } catch { return new Set() }
+  })
+
+  const toggleFavorite = useCallback((messageId: number) => {
+    setFavorites(prev => {
+      const next = new Set(prev)
+      if (next.has(messageId)) next.delete(messageId); else next.add(messageId)
+      try { localStorage.setItem('favorites', JSON.stringify(Array.from(next))) } catch {}
+      return next
+    })
+  }, [])
   const [showContext, setShowContext] = useState(false)
+
+  // Expose favorites helpers globally for child bubbles (no prop drilling)
+  useEffect(() => {
+    ;(window as any).__favFns = {
+      toggle: (id: number) => toggleFavorite(id),
+      has:  (id: number) => favorites.has(id),
+    }
+    return () => { try { delete (window as any).__favFns } catch {} }
+  }, [favorites, toggleFavorite])
   
   // Use global audio state
   const {
@@ -960,8 +999,12 @@ export default function MobileMessageApp() {
       })
     }
 
+    // Favorites filter (applies to any mode when active)
+    if (showFavoritesOnly) {
+      filtered = filtered.filter((msg) => favorites.has(msg.message_id as unknown as number))
+    }
     return filtered
-  }, [messages, selectedYear, searchMode, searchQuery, showLoveNotes, searchFilters])
+  }, [messages, selectedYear, searchMode, searchQuery, showLoveNotes, showFavoritesOnly, favorites, searchFilters])
 
   // Separate state for love notes with audio files
   const [loveNotesWithAudio, setLoveNotesWithAudio] = useState<Message[]>([])
@@ -1052,6 +1095,35 @@ export default function MobileMessageApp() {
     // For large datasets, show most recent days first
     return groupedByDay.slice(-displayLimit)
   }, [groupedByDay, displayLimit])
+
+  // Keep month chips in sync with the first visible day on scroll
+  useEffect(() => {
+    const onScroll = () => {
+      const containers = document.querySelectorAll('[data-day-key]') as NodeListOf<HTMLElement>
+      let first: HTMLElement | null = null
+      for (const el of Array.from(containers)) {
+        const rect = el.getBoundingClientRect()
+        if (rect.top >= 64) { first = el; break }
+      }
+      if (!first) return
+      const key = first.dataset.dayKey
+      if (!key) return
+      const d = new Date(key)
+      if (Number.isNaN(d.getTime())) return
+      const y = d.getFullYear(); const m = d.getMonth()
+      if (selectedYear === y) {
+        const label = MONTH_LABELS[m]
+        if (label && (selectedMonthsSidebar.length === 0 || selectedMonthsSidebar[selectedMonthsSidebar.length-1] !== label)) {
+          setSelectedMonthsSidebar((prev)=>{
+            if (prev.includes(label)) return prev
+            return [...prev, label]
+          })
+        }
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true } as any)
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [selectedYear, selectedMonthsSidebar, MONTH_LABELS])
 
   const selectYear = (year: number | null) => {
     setSelectedYear(year)
@@ -1691,6 +1763,18 @@ export default function MobileMessageApp() {
                 <Heart className="h-4 w-4 mr-2" /> Love Notes
               </ToggleGroupItem>
             </ToggleGroup>
+
+            {/* Favorites Toggle */}
+            <div className="mt-3">
+              <ToggleGroup type="single" value={showFavoritesOnly ? 'fav' : 'any'} onValueChange={(v)=>{ if (!v) return; setShowFavoritesOnly(v==='fav') }} className="grid grid-cols-1 gap-2">
+                <ToggleGroupItem value="any" className={`justify-start ${chipClass}`}>
+                  <span className="mr-2">⭐️</span> Any
+                </ToggleGroupItem>
+                <ToggleGroupItem value="fav" className={`justify-start ${chipClass}`}>
+                  <Star className="h-4 w-4 mr-2" /> Favorites
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
           </div>
 
           {/* Section: Year & Month Filter */}
@@ -1700,7 +1784,7 @@ export default function MobileMessageApp() {
               if (!v) return; if (v==='all') selectYear(null); else selectYear(parseInt(v))
             }} className="grid grid-cols-3 gap-2 mb-3">
               <ToggleGroupItem value={'all'} aria-label="All Years" className={chipClass}>All</ToggleGroupItem>
-              {yearData.slice(0,9).map((y) => (
+              {yearData.map((y) => (
                 <ToggleGroupItem key={y.year} value={String(y.year)} className={chipClass}>{y.year}</ToggleGroupItem>
               ))}
             </ToggleGroup>
@@ -1727,50 +1811,25 @@ export default function MobileMessageApp() {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto pb-4">
-          {/* Direct Audio Player */}
-          {showLoveNotes ? (
-            <DirectAudioPlayer selectedYear={selectedYear} />
-          ) : (
-            <>
-              {limitedGroupedByDay.length === 0 ? (
+          {limitedGroupedByDay.length === 0 ? (
             <div className="flex items-center justify-center h-64 px-4">
               <div className="text-center">
-                {searchMode === "love" ? (
-                  <>
-                    <div className="text-6xl mb-4">💕</div>
-                    <h3 className="text-xl font-semibold text-gray-300 mb-2">No Love Notes Selected</h3>
-                    <p className="text-gray-400 mb-4">
-                      You haven't selected any love notes yet.
-                    </p>
-                    <Button 
-                      onClick={() => window.open('/love-notes-selector', '_blank')}
-                      className="bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600"
-                    >
-                      Select Love Notes
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <MessageCircle className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                    <p className="text-gray-400">No messages found</p>
-                    {searchQuery && (
-                      <p className="text-sm text-gray-500 mt-2">
-                        Try adjusting your search or filters
-                      </p>
-                    )}
-                    {showLoveNotes && (
-                      <div className="text-sm text-gray-500 mt-2">
-                        {isLoadingLoveNotes ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pink-500"></div>
-                            <span>Loading love notes with audio files...</span>
-                          </div>
-                        ) : (
-                          <p>Audio generation is in progress. Only messages with audio files are shown.</p>
-                        )}
+                <MessageCircle className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                <p className="text-gray-400">No messages found</p>
+                {searchQuery && (
+                  <p className="text-sm text-gray-500 mt-2">Try adjusting your search or filters</p>
+                )}
+                {showLoveNotes && (
+                  <div className="text-sm text-gray-500 mt-2">
+                    {isLoadingLoveNotes ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pink-500"></div>
+                        <span>Loading love notes with audio files...</span>
                       </div>
+                    ) : (
+                      <p>Only messages with audio files are shown.</p>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
             </div>
@@ -1779,7 +1838,7 @@ export default function MobileMessageApp() {
               {limitedGroupedByDay.map(([dayKey, groups]) => {
                 const dayDate = new Date(dayKey)
                 return (
-                  <div key={dayKey}>
+                  <div key={dayKey} data-day-key={dayKey}>
                     <DayHeader date={dayDate} />
                     {groups.map((group) => (
                       <MessageGroup 
@@ -1804,10 +1863,27 @@ export default function MobileMessageApp() {
               })}
             </div>
           )}
-            </>
-          )}
         </div>
       </div>
+
+      {/* Sticky bottom Love Notes player (mobile & desktop) */}
+      {showLoveNotes && audioFiles.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-700 bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-gray-900/75">
+          <div className="max-w-6xl mx-auto px-3 py-2">
+            <EnhancedLoveNotesAudioPlayer
+              audioFiles={audioFiles}
+              currentIndex={currentIndex}
+              onIndexChange={(idx)=>{ if (audioFiles[idx]) play(audioFiles[idx], idx) }}
+              onPlayAll={()=>{ if (audioFiles.length>0) play(audioFiles[0], 0) }}
+              onStop={()=>{ pause(); reset() }}
+              isPlaying={isPlaying}
+              autoPlay={autoPlay}
+              onAutoPlayToggle={()=> setAutoPlay(!autoPlay)}
+              showStats={false}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Mobile Sidebar - Only on mobile */}
       {sidebarOpen && (
@@ -1829,7 +1905,7 @@ export default function MobileMessageApp() {
                 <h3 className="text-sm font-medium text-gray-300 mb-3">Year Filter</h3>
                 <ToggleGroup type="single" value={selectedYear?.toString() ?? 'all'} onValueChange={(v)=>{ if (!v) return; if (v==='all') selectYear(null); else selectYear(parseInt(v)) }} className="grid grid-cols-3 gap-2 mb-3">
                   <ToggleGroupItem value={'all'} aria-label="All Years">All</ToggleGroupItem>
-                  {yearData.slice(0,9).map((y)=> (
+                  {yearData.map((y)=> (
                     <ToggleGroupItem key={y.year} value={String(y.year)}>{y.year}</ToggleGroupItem>
                   ))}
                 </ToggleGroup>

@@ -10,6 +10,7 @@
     "cleanup:zero-text": "node scripts/cleanup-fix-zero-text.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.864.0",
     "@emotion/is-prop-valid": "latest",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@hookform/resolvers": "^3.9.1",

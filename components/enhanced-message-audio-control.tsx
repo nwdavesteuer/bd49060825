@@ -84,7 +84,7 @@ export default function EnhancedMessageAudioControl({
       {/* Hidden Audio Element */}
       <audio
         ref={audioRef}
-        src={`/audio/love-notes-mp3/${audioFile}`}
+        src={`${process.env.NEXT_PUBLIC_AUDIO_BASE_URL ? process.env.NEXT_PUBLIC_AUDIO_BASE_URL.replace(/\/$/, '') + '/' : '/audio/love-notes-mp3/'}${audioFile}`}
         preload="none"
         onEnded={() => setIsPlaying(false)}
         onError={() => {

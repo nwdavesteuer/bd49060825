@@ -19,6 +19,7 @@ let audioFilesCache: AudioFileInfo[] | null = null
 let audioFilenameSetCache: Set<string> | null = null
 let audioFilenameByPrefixCache: Map<string, string> | null = null
 const csvDateToFilenameCache: Record<number, Map<number, string>> = {}
+const manifestCache: Record<number, Map<string, string>> = {}
 
 /**
  * Load CSV data for a specific year
@@ -132,6 +133,37 @@ async function getAvailableAudioFilesWithMetadata(): Promise<AudioFileInfo[]> {
   }
 }
 
+async function loadManifest(year: number): Promise<Map<string, string>> {
+  if (manifestCache[year]) return manifestCache[year]
+  try {
+    const manifestBase = (process as any)?.env?.NEXT_PUBLIC_MANIFEST_BASE_URL || ''
+    const base = typeof manifestBase === 'string' && manifestBase.length > 0
+      ? manifestBase.replace(/\/$/, '')
+      : ''
+    const url = base
+      ? `${base}/${year}.json`
+      : `/audio/love-notes-manifests/${year}.json`
+    const res = await fetch(url)
+    if (!res.ok) {
+      // Cache negative result to avoid repeated 404 fetches
+      const empty = new Map<string, string>()
+      manifestCache[year] = empty
+      return empty
+    }
+    const json = await res.json() as { year: number; entries: { csv_id: string; filename: string | null }[] }
+    const map = new Map<string, string>()
+    for (const e of json.entries) {
+      if (e.filename) map.set(e.csv_id, e.filename)
+    }
+    manifestCache[year] = map
+    return map
+  } catch {
+    const empty = new Map<string, string>()
+    manifestCache[year] = empty
+    return empty
+  }
+}
+
 /**
  * Build and cache a Set of exact audio filenames for O(1) existence checks
  */
@@ -151,10 +183,13 @@ export async function getAudioFilenameSet(): Promise<Set<string>> {
  * Returns exact match if present, otherwise a best-effort by prefix
  */
 export async function resolveAudioFilename(year: number, messageId: string): Promise<string | null> {
+  // Prefer manifest mapping (authoritative for Love Notes)
+  const man = await loadManifest(year)
+  if (man.has(messageId)) return man.get(messageId) as string
+  // Fallback to direct filesystem index
   const set = await getAudioFilenameSet()
   const exact = `david-${year}-love-note-${messageId}.mp3`
   if (set.has(exact)) return exact
-  // Fallback: some files may have CLI suffixes appended; try prefix match
   const prefix = `david-${year}-love-note-${messageId}`
   if (!audioFilenameByPrefixCache) return null
   for (const [p, fname] of audioFilenameByPrefixCache.entries()) {
@@ -240,9 +275,8 @@ export async function getAudioFileStats(year?: number): Promise<AudioFileStats> 
  * Check if a specific audio file exists
  */
 export async function hasAudioFile(messageId: string, year: number): Promise<boolean> {
-  const filename = `david-${year}-love-note-${messageId}.mp3`
-  const set = await getAudioFilenameSet()
-  return set.has(filename)
+  const resolved = await resolveAudioFilename(year, messageId)
+  return !!resolved
 }
 
 /**
@@ -251,11 +285,10 @@ export async function hasAudioFile(messageId: string, year: number): Promise<boo
 export async function checkMultipleAudioFiles(messages: Array<{messageId: string, year: number}>): Promise<Map<string, boolean>> {
   const results = new Map<string, boolean>()
   try {
-    const set = await getAudioFilenameSet()
-    for (const {messageId, year} of messages) {
-      const filename = `david-${year}-love-note-${messageId}.mp3`
-      results.set(messageId, set.has(filename))
-    }
+    await Promise.all(messages.map(async ({ messageId, year }) => {
+      const resolved = await resolveAudioFilename(year, messageId)
+      results.set(messageId, !!resolved)
+    }))
   } catch (error) {
     console.error('Error checking multiple audio files:', error)
   }

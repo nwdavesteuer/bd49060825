@@ -135,29 +135,43 @@ async function getAvailableAudioFilesWithMetadata(): Promise<AudioFileInfo[]> {
 
 async function loadManifest(year: number): Promise<Map<string, string>> {
   if (manifestCache[year]) return manifestCache[year]
+  
   try {
-    const manifestBase = (process as any)?.env?.NEXT_PUBLIC_MANIFEST_BASE_URL || ''
-    const base = typeof manifestBase === 'string' && manifestBase.length > 0
-      ? manifestBase.replace(/\/$/, '')
-      : ''
-    const url = base
-      ? `${base}/${year}.json`
-      : `/audio/love-notes-manifests/${year}.json`
-    const res = await fetch(url)
-    if (!res.ok) {
-      // Cache negative result to avoid repeated 404 fetches
-      const empty = new Map<string, string>()
-      manifestCache[year] = empty
-      return empty
+    // First try to get manifest from Supabase storage
+    const { getManifestUrl } = await import('./supabase-storage')
+    const manifestUrl = await getManifestUrl(year)
+    
+    if (manifestUrl) {
+      try {
+        console.log(`Trying Supabase manifest for ${year}`)
+        const res = await fetch(manifestUrl)
+        if (res.ok) {
+          const json = await res.json() as { year: number; entries: { csv_id: string; filename: string | null }[] }
+          const map = new Map<string, string>()
+          for (const e of json.entries) {
+            if (e.filename) map.set(e.csv_id, e.filename)
+          }
+          manifestCache[year] = map
+          console.log(`✅ Loaded manifest for ${year} from Supabase`)
+          return map
+        }
+      } catch (error) {
+        console.log(`❌ Error loading Supabase manifest for ${year}:`, error)
+      }
     }
-    const json = await res.json() as { year: number; entries: { csv_id: string; filename: string | null }[] }
-    const map = new Map<string, string>()
-    for (const e of json.entries) {
-      if (e.filename) map.set(e.csv_id, e.filename)
-    }
-    manifestCache[year] = map
-    return map
-  } catch {
+    
+    // Skip local manifest files for now to avoid 404 spam
+    // They're not uploaded to Supabase storage yet
+    // The direct filename matching works fine
+    
+    // If no manifest found, create empty cache to avoid repeated requests
+    console.log(`⚠️ No manifest found for ${year}, using direct filename matching`)
+    const empty = new Map<string, string>()
+    manifestCache[year] = empty
+    return empty
+    
+  } catch (error) {
+    console.error(`Error loading manifest for ${year}:`, error)
     const empty = new Map<string, string>()
     manifestCache[year] = empty
     return empty
@@ -183,18 +197,36 @@ export async function getAudioFilenameSet(): Promise<Set<string>> {
  * Returns exact match if present, otherwise a best-effort by prefix
  */
 export async function resolveAudioFilename(year: number, messageId: string): Promise<string | null> {
-  // Prefer manifest mapping (authoritative for Love Notes)
+  // Try direct filename construction first (most common case)
+  const exact = `david-${year}-love-note-${messageId}.mp3`
+  
+  // Check if this file exists in Supabase storage
+  try {
+    const { getAudioFileUrl } = await import('./supabase-storage')
+    const signedUrl = await getAudioFileUrl(exact)
+    if (signedUrl) {
+      console.log(`✅ Found audio file in Supabase: ${exact}`)
+      return exact
+    }
+  } catch (error) {
+    console.log(`❌ Error checking Supabase for ${exact}:`, error)
+  }
+  
+  // Fallback to manifest mapping (if available)
   const man = await loadManifest(year)
   if (man.has(messageId)) return man.get(messageId) as string
-  // Fallback to direct filesystem index
+  
+  // Fallback to local filesystem index
   const set = await getAudioFilenameSet()
-  const exact = `david-${year}-love-note-${messageId}.mp3`
   if (set.has(exact)) return exact
+  
+  // Last resort: prefix matching
   const prefix = `david-${year}-love-note-${messageId}`
   if (!audioFilenameByPrefixCache) return null
   for (const [p, fname] of audioFilenameByPrefixCache.entries()) {
     if (p.startsWith(prefix)) return fname
   }
+  
   return null
 }
 

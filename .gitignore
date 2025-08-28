@@ -48,8 +48,12 @@ next-env.d.ts
 *.log
 *.out
 
-# Audio files - keep WAV masters locally, deploy MP3 versions only
+# Audio files - keep locally, use Supabase storage for deployment
 /public/audio/love-notes/*.wav
+/public/audio/love-notes-mp3/
+/public/audio/love-notes-mp3-archive*/
+/public/audio/*.mp3
+*.mp3
 
 # Photo files - keep locally, don't deploy large image/video files
 /public/extracted-photos/

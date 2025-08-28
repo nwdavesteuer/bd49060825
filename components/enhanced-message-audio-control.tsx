@@ -5,6 +5,7 @@ import { Play, Pause } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAudioStore } from '@/lib/audio-state-manager'
 import { getAudioFilenameSet, resolveAudioFilename } from '@/lib/audio-file-manager'
+import { getAudioFileUrl } from '@/lib/supabase-storage'
 
 interface EnhancedMessageAudioControlProps {
   audioFile: string
@@ -23,37 +24,54 @@ export default function EnhancedMessageAudioControl({
   const [isPlaying, setIsPlaying] = useState(false)
   const [hasAudio, setHasAudio] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
 
-  // Check if audio file exists using the manifest (no HEAD requests)
+  // Check if audio file exists and get signed URL
   useEffect(() => {
     let mounted = true
-    const check = async () => {
+    const loadAudioUrl = async () => {
       setIsLoading(true)
       try {
-        // Resolve in case a suffix was added during CLI write
-        const parts = audioFile.match(/david-(\d{4})-love-note-(.+)\.mp3$/)
-        let exists = false
-        let resolved = audioFile
-        if (parts) {
-          const year = parseInt(parts[1])
-          const id = parts[2]
-          const fname = await resolveAudioFilename(year, id)
-          if (fname) {
-            resolved = fname
+        // Try to get signed URL from Supabase storage first
+        const signedUrl = await getAudioFileUrl(audioFile)
+        
+        if (signedUrl && mounted) {
+          setAudioUrl(signedUrl)
+          setHasAudio(true)
+          console.log(`✅ Got signed URL for ${audioFile}`)
+        } else {
+          // Fallback to checking local files
+          const parts = audioFile.match(/david-(\d{4})-love-note-(.+)\.mp3$/)
+          let exists = false
+          let resolved = audioFile
+          if (parts) {
+            const year = parseInt(parts[1])
+            const id = parts[2]
+            const fname = await resolveAudioFilename(year, id)
+            if (fname) {
+              resolved = fname
+            }
+          }
+          const set = await getAudioFilenameSet()
+          if (!mounted) return
+          exists = set.has(resolved)
+          setHasAudio(exists)
+          if (exists) {
+            // Use local fallback URL
+            setAudioUrl(`/audio/love-notes-mp3/${resolved}`)
           }
         }
-        const set = await getAudioFilenameSet()
-        if (!mounted) return
-        exists = set.has(resolved)
-        setHasAudio(exists)
       } catch (error) {
-        console.error('Error checking audio file:', error)
-        if (mounted) setHasAudio(false)
+        console.error('Error loading audio file:', error)
+        if (mounted) {
+          setHasAudio(false)
+          setAudioUrl(null)
+        }
       } finally {
         if (mounted) setIsLoading(false)
       }
     }
-    check()
+    loadAudioUrl()
     return () => { mounted = false }
   }, [audioFile])
 
@@ -84,7 +102,7 @@ export default function EnhancedMessageAudioControl({
       {/* Hidden Audio Element */}
       <audio
         ref={audioRef}
-        src={`${process.env.NEXT_PUBLIC_AUDIO_BASE_URL ? process.env.NEXT_PUBLIC_AUDIO_BASE_URL.replace(/\/$/, '') + '/' : '/audio/love-notes-mp3/'}${audioFile}`}
+        src={audioUrl || ''}
         preload="none"
         onEnded={() => setIsPlaying(false)}
         onError={() => {

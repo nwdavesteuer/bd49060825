@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Play, Pause, ChevronLeft, ChevronRight, Calendar, Heart, Star } from "lucide-react"
 import { supabase, TABLE_NAME } from "@/lib/supabase"
+import { getAudioFileUrl } from "@/lib/supabase-storage"
 
 interface AudioFile {
   filename: string
@@ -159,6 +160,24 @@ export default function DirectAudioPlayer({ selectedYear = null }: DirectAudioPl
     
     if (audioRef.current) {
       audioRef.current.pause()
+      
+      // Get signed URL for the audio file
+      try {
+        const signedUrl = await getAudioFileUrl(file.filename)
+        if (signedUrl) {
+          audioRef.current.src = signedUrl
+          console.log(`🎵 Loaded signed URL for ${file.filename}`)
+        } else {
+          // Fallback to local URL
+          audioRef.current.src = `/audio/love-notes-mp3/${file.filename}`
+          console.log(`🎵 Fallback to local URL for ${file.filename}`)
+        }
+      } catch (error) {
+        console.error('Error getting audio URL:', error)
+        // Fallback to local URL
+        audioRef.current.src = `/audio/love-notes-mp3/${file.filename}`
+      }
+      
       audioRef.current.load()
       
       // Auto-play the selected file
@@ -343,7 +362,7 @@ export default function DirectAudioPlayer({ selectedYear = null }: DirectAudioPl
                 
                 <audio
                   ref={audioRef}
-                  src={`/audio/love-notes-mp3/${selectedFile.filename}`}
+                  key={selectedFile.filename} // Force reload when file changes
                   onEnded={() => {
                     setIsPlaying(false)
                     // Auto-play next if available

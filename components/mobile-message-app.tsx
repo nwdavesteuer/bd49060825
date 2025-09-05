@@ -1334,7 +1334,7 @@ Please check your Supabase dashboard and verify the project URL in your environm
           <div className="text-xs text-gray-400 mb-6 p-3 bg-gray-700 rounded">
             <p><strong>Table:</strong> {TABLE_NAME}</p>
             <p><strong>Environment:</strong> {process.env.NODE_ENV}</p>
-            <p><strong>Supabase URL:</strong> {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Configured' : 'Missing'}</p>
+            <p><strong>Supabase URL:</strong> - {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Configured' : 'Missing'}</p>
             <p><strong>Supabase Key:</strong> {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Configured' : 'Missing'}</p>
           </div>
           <div className="flex gap-3">

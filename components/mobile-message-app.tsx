@@ -130,7 +130,7 @@ function MessageBubble({
   const doToggle = (id: number) => { if (favFns) favFns.toggle(id) }
   const [audioFilename, setAudioFilename] = useState<string | null>(null)
   const [hasAudio, setHasAudio] = useState(false)
-  
+
   // Normalize text once and decide whether this bubble has any content to render
   const rawText = (message as any).text
   const displayText = typeof rawText === 'string' ? rawText : (rawText == null ? '' : String(rawText))
@@ -228,8 +228,8 @@ function MessageBubble({
         className={`
           px-4 py-2 md:px-6 md:py-3 
           ${getCornerClasses()}
-          ${isFromMe 
-            ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white" 
+          ${isFromMe
+            ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
             : "bg-gray-700 text-gray-100"
           }
           ${getEmotionTint()}
@@ -273,7 +273,7 @@ function MessageBubble({
           />
         )}
       </div>
-      
+
       {/* Subtle emotion indicator - only on hover for high confidence */}
       {hasEmotionData && message.primary_emotion !== 'neutral' && (
         <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
@@ -282,16 +282,16 @@ function MessageBubble({
   )
 }
 
-function MessageGroup({ 
-  group, 
-  searchMode, 
+function MessageGroup({
+  group,
+  searchMode,
   showLoveNotes,
   isPlaying,
   onPlay,
   onPause,
   onEnded
-}: { 
-  group: MessageGroup; 
+}: {
+  group: MessageGroup;
   searchMode?: "all" | "year" | "love"
   showLoveNotes?: boolean
   isPlaying?: boolean
@@ -370,7 +370,7 @@ export default function MobileMessageApp() {
   const [selectedYear, setSelectedYear] = useState<number | null>(2015)
   const [yearData, setYearData] = useState<YearData[]>([])
   const [messagesExpanded, setMessagesExpanded] = useState(true)
-  const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const chipClass =
     "h-9 rounded-md border bg-muted/40 px-3 text-sm hover:bg-muted transition-colors data-[state=on]:bg-primary data-[state=on]:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
   const [selectedMonthsSidebar, setSelectedMonthsSidebar] = useState<string[]>([])
@@ -421,11 +421,11 @@ export default function MobileMessageApp() {
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
   const [showSearchPanel, setShowSearchPanel] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
-  
+
   // Love Notes Audio State
   const [showLoveNotes, setShowLoveNotes] = useState(false)
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
-  const [favorites, setFavorites] = useState<Set<number>>(()=>{
+  const [favorites, setFavorites] = useState<Set<number>>(() => {
     if (typeof window === 'undefined') return new Set()
     try { const raw = localStorage.getItem('favorites'); if (!raw) return new Set(); return new Set(JSON.parse(raw) as number[]) } catch { return new Set() }
   })
@@ -434,7 +434,7 @@ export default function MobileMessageApp() {
     setFavorites(prev => {
       const next = new Set(prev)
       if (next.has(messageId)) next.delete(messageId); else next.add(messageId)
-      try { localStorage.setItem('favorites', JSON.stringify(Array.from(next))) } catch {}
+      try { localStorage.setItem('favorites', JSON.stringify(Array.from(next))) } catch { }
       return next
     })
   }, [])
@@ -442,13 +442,13 @@ export default function MobileMessageApp() {
 
   // Expose favorites helpers globally for child bubbles (no prop drilling)
   useEffect(() => {
-    ;(window as any).__favFns = {
+    ; (window as any).__favFns = {
       toggle: (id: number) => toggleFavorite(id),
-      has:  (id: number) => favorites.has(id),
+      has: (id: number) => favorites.has(id),
     }
-    return () => { try { delete (window as any).__favFns } catch {} }
+    return () => { try { delete (window as any).__favFns } catch { } }
   }, [favorites, toggleFavorite])
-  
+
   // Use global audio state
   const {
     isPlaying,
@@ -463,7 +463,7 @@ export default function MobileMessageApp() {
     setAutoPlay,
     reset
   } = useAudioStore()
-  
+
   // Pre-calculated insights from the full dataset
   const insights = {
     totalWords: 470263,
@@ -488,7 +488,7 @@ export default function MobileMessageApp() {
     console.log('   Messages available:', messages.length)
     console.log('   Loading state:', loading)
     console.log('   Error state:', error)
-    
+
     const counts = {
       love: 0,
       joy: 0,
@@ -523,12 +523,12 @@ export default function MobileMessageApp() {
       console.log('🎭 Skipping emotion count - no messages')
       return counts
     }
-    
+
     if (loading) {
       console.log('🎭 Skipping emotion count - still loading')
       return counts
     }
-    
+
     // Debug: Check what fields are actually available on the first message
     if (messages.length > 0) {
       const firstMsg = messages[0]
@@ -541,11 +541,11 @@ export default function MobileMessageApp() {
         emotion_fields: Object.keys(firstMsg).filter(key => key.includes('emotion'))
       })
     }
-    
+
     messages.forEach((msg, index) => {
       if (!msg.text) return
       totalMessages++
-      
+
       // Debug first few messages
       if (index < 5) {
         console.log(`🎭 Message ${index + 1}:`, {
@@ -558,7 +558,7 @@ export default function MobileMessageApp() {
           in_counts: (msg.primary_emotion || '') in counts
         })
       }
-      
+
       // Use pre-analyzed emotion data if available
       if (msg.primary_emotion) {
         if (msg.primary_emotion === 'neutral') {
@@ -593,7 +593,7 @@ export default function MobileMessageApp() {
     console.log(`   Messages with emotions: ${messagesWithEmotions}`)
     console.log(`   Neutral messages: ${neutralCount}`)
     console.log(`   Messages array length: ${messages.length}`)
-    
+
     // Show sample of actual emotion data
     const sampleEmotional = messages.find(msg => msg.primary_emotion && msg.primary_emotion !== 'neutral')
     if (sampleEmotional) {
@@ -604,7 +604,7 @@ export default function MobileMessageApp() {
         emotion_confidence: sampleEmotional.emotion_confidence
       })
     }
-    
+
     console.log(`   Emotion counts:`, counts)
     console.log(`   Counts object keys:`, Object.keys(counts))
     console.log(`   Sample counts:`, {
@@ -628,7 +628,7 @@ export default function MobileMessageApp() {
   const generateSearchSuggestions = useMemo(() => {
     const suggestions: string[] = []
     const commonWords = new Map<string, number>()
-    
+
     // Extract common words from messages
     messages.forEach(msg => {
       if (msg.text) {
@@ -640,18 +640,18 @@ export default function MobileMessageApp() {
         })
       }
     })
-    
+
     // Get top 10 most common words
     const sortedWords = Array.from(commonWords.entries())
-      .sort(([,a], [,b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 10)
       .map(([word]) => word)
-    
+
     suggestions.push(...sortedWords)
-    
+
     // Add some predefined interesting searches
     suggestions.push('cafe', 'restaurant', 'meeting', 'work', 'home', 'travel', 'food', 'coffee', 'dinner', 'lunch')
-    
+
     return suggestions
   }, [messages])
 
@@ -671,6 +671,11 @@ export default function MobileMessageApp() {
         setTimeout(() => setLoadingProgress(6), 5500)
         setTimeout(() => setLoadingProgress(7), 6500)
 
+        // Check if Supabase is properly configured
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          throw new Error("Supabase environment variables are not configured. Please check your .env file or Vercel environment variables.")
+        }
+
         // Get exact count from database
         const { count: exactCount, error: countError } = await supabase
           .from(TABLE_NAME)
@@ -678,6 +683,15 @@ export default function MobileMessageApp() {
 
         if (countError) {
           console.error("Count query error:", countError)
+          // Check if it's a DNS/connection error
+          if (countError.message?.includes('ENOTFOUND') || countError.message?.includes('getaddrinfo')) {
+            throw new Error(`Database connection failed: Unable to reach Supabase server. This usually means:
+1. The Supabase project has been deleted or suspended
+2. The project URL is incorrect  
+3. There's a network connectivity issue
+
+Please check your Supabase dashboard and verify the project URL in your environment variables.`)
+          }
           throw countError
         }
 
@@ -685,12 +699,12 @@ export default function MobileMessageApp() {
 
         // Fetch all messages with pagination to handle large datasets
         const startTime = Date.now()
-        
+
         let allData: any[] = []
         let hasMore = true
         let page = 0
         const pageSize = 1000
-        
+
         while (hasMore) {
           console.log(`Fetching page ${page + 1} (${pageSize} records)...`)
           const { data: pageData, error: fetchError } = await supabase
@@ -698,12 +712,12 @@ export default function MobileMessageApp() {
             .select('message_id, text, readable_date, is_from_me, sender, recipient, has_attachments, attachments_info, emojis, links, service, account, contact_id, date, date_read, guid, primary_emotion, emotion_confidence, secondary_emotions, emotion_intensity, emotion_context, emotion_triggers, relationship_impact')
             .order("readable_date", { ascending: true })
             .range(page * pageSize, (page + 1) * pageSize - 1)
-          
+
           if (fetchError) {
             console.error("❌ Page fetch error:", fetchError)
             throw fetchError
           }
-          
+
           if (pageData && pageData.length > 0) {
             allData = allData.concat(pageData)
             console.log(`✅ Page ${page + 1} loaded: ${pageData.length} records`)
@@ -711,14 +725,14 @@ export default function MobileMessageApp() {
           } else {
             hasMore = false
           }
-          
+
           // Safety check to prevent infinite loops
           if (page > 50) {
             console.warn("⚠️ Stopping pagination after 50 pages to prevent infinite loop")
             hasMore = false
           }
         }
-        
+
         const data = allData
         const queryTime = Date.now() - startTime
         console.log(`✅ Main query completed in ${queryTime}ms`)
@@ -729,7 +743,7 @@ export default function MobileMessageApp() {
         }
 
         console.log("✅ Raw data received:", data.length, "messages")
-        
+
         // Debug: Check first few messages with their IDs
         console.log("🔍 First 5 messages with IDs:", data.slice(0, 5).map((msg: any) => ({
           message_id: msg.message_id,
@@ -737,7 +751,7 @@ export default function MobileMessageApp() {
           is_from_me: msg.is_from_me,
           date: msg.readable_date
         })))
-        
+
         // Check if we have the specific audio messages
         const audioMessageIds = [176274, 176305, 176307, 176312, 176322]
         const foundAudioMessages = data.filter((msg: any) => audioMessageIds.includes(msg.message_id))
@@ -884,42 +898,42 @@ export default function MobileMessageApp() {
     // Text search with multiple modes
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
-      
+
       // Check if it's a special search command
       if (query.startsWith('/')) {
         const command = query.slice(1).split(' ')[0]
         const searchTerm = query.slice(command.length + 2)
-        
+
         switch (command) {
           case 'sender':
-            filtered = filtered.filter((msg) => 
+            filtered = filtered.filter((msg) =>
               msg.sender?.toLowerCase().includes(searchTerm)
             )
             break
           case 'date':
-            filtered = filtered.filter((msg) => 
+            filtered = filtered.filter((msg) =>
               msg.readable_date?.includes(searchTerm)
             )
             break
           case 'link':
-            filtered = filtered.filter((msg) => 
-              msg.text?.toLowerCase().includes('http') || 
+            filtered = filtered.filter((msg) =>
+              msg.text?.toLowerCase().includes('http') ||
               msg.links?.toLowerCase().includes(searchTerm)
             )
             break
           case 'emoji':
-            filtered = filtered.filter((msg) => 
+            filtered = filtered.filter((msg) =>
               msg.emojis || msg.text?.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u)
             )
             break
           case 'attachment':
-            filtered = filtered.filter((msg) => 
+            filtered = filtered.filter((msg) =>
               msg.has_attachments === 1 || msg.has_attachments === "1"
             )
             break
           default:
             // Regular text search
-            filtered = filtered.filter((msg) => 
+            filtered = filtered.filter((msg) =>
               msg.text?.toLowerCase().includes(query) ||
               msg.sender?.toLowerCase().includes(query) ||
               msg.recipient?.toLowerCase().includes(query)
@@ -927,7 +941,7 @@ export default function MobileMessageApp() {
         }
       } else {
         // Regular text search across all fields
-        filtered = filtered.filter((msg) => 
+        filtered = filtered.filter((msg) =>
           msg.text?.toLowerCase().includes(query) ||
           msg.sender?.toLowerCase().includes(query) ||
           msg.recipient?.toLowerCase().includes(query)
@@ -937,25 +951,25 @@ export default function MobileMessageApp() {
 
     // Advanced filters
     if (searchFilters.sender) {
-      filtered = filtered.filter((msg) => 
+      filtered = filtered.filter((msg) =>
         msg.sender?.toLowerCase().includes(searchFilters.sender.toLowerCase())
       )
     }
 
     if (searchFilters.hasAttachments) {
-      filtered = filtered.filter((msg) => 
+      filtered = filtered.filter((msg) =>
         msg.has_attachments === 1 || msg.has_attachments === "1"
       )
     }
 
     if (searchFilters.hasLinks) {
-      filtered = filtered.filter((msg) => 
+      filtered = filtered.filter((msg) =>
         msg.text?.toLowerCase().includes('http') || msg.links
       )
     }
 
     if (searchFilters.hasEmojis) {
-      filtered = filtered.filter((msg) => 
+      filtered = filtered.filter((msg) =>
         msg.emojis || msg.text?.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u)
       )
     }
@@ -972,10 +986,10 @@ export default function MobileMessageApp() {
         return activeEmotions.some(emotion => {
           // Check primary emotion (include low confidence matches)
           if (msg.primary_emotion === emotion) return true
-          
+
           // Check secondary emotions
           if (msg.secondary_emotions && Array.isArray(msg.secondary_emotions) && msg.secondary_emotions.includes(emotion)) return true
-          
+
           // Special case for deep talks (context-based)
           if (emotion === 'deepTalks') {
             const messageDate = new Date(msg.readable_date)
@@ -984,7 +998,7 @@ export default function MobileMessageApp() {
             const isLongMessage = msg.text.length > 100
             return isLongMessage && isLateNight
           }
-          
+
           return false
         })
       })
@@ -1008,33 +1022,33 @@ export default function MobileMessageApp() {
       const loadLoveNotesWithAudio = async () => {
         console.log('🎵 Loading love notes with audio files...')
         setIsLoadingLoveNotes(true)
-        
+
         const davidMessages = filteredMessages.filter(msg => String(msg.is_from_me) === "1")
         console.log(`🎵 Found ${davidMessages.length} David messages to check`)
-        
+
         if (davidMessages.length === 0) {
           console.log('🎵 No David messages found')
           setLoveNotesWithAudio([])
           setIsLoadingLoveNotes(false)
           return
         }
-        
+
         try {
           // Prepare messages for batch checking
           const messagesToCheck = davidMessages.map(message => ({
             messageId: String(message.message_id),
             year: message.year || new Date(message.readable_date).getFullYear()
           }))
-          
+
           // Use the efficient batch checking function
           const audioResults = await checkMultipleAudioFiles(messagesToCheck)
-          
+
           // Filter messages that have audio files
           const messagesWithAudio = davidMessages.filter(message => {
             const messageId = String(message.message_id)
             return audioResults.get(messageId) || false
           })
-          
+
           console.log(`🎵 Found ${messagesWithAudio.length} messages with audio files`)
           setLoveNotesWithAudio(messagesWithAudio)
         } catch (error) {
@@ -1044,7 +1058,7 @@ export default function MobileMessageApp() {
           setIsLoadingLoveNotes(false)
         }
       }
-      
+
       loadLoveNotesWithAudio()
     } else {
       setLoveNotesWithAudio([])
@@ -1075,7 +1089,7 @@ export default function MobileMessageApp() {
 
   // Performance optimization: Debounced search
   const debouncedSearchQuery = useMemo(() => {
-    const timeoutId = setTimeout(() => {}, 300)
+    const timeoutId = setTimeout(() => { }, 300)
     return searchQuery
   }, [searchQuery])
 
@@ -1083,7 +1097,7 @@ export default function MobileMessageApp() {
   const displayLimit = 1000 // Show max 1000 messages at once for performance
   const limitedGroupedByDay = useMemo(() => {
     if (groupedByDay.length <= displayLimit) return groupedByDay
-    
+
     // For large datasets, show most recent days first
     return groupedByDay.slice(-displayLimit)
   }, [groupedByDay, displayLimit])
@@ -1105,8 +1119,8 @@ export default function MobileMessageApp() {
       const y = d.getFullYear(); const m = d.getMonth()
       if (selectedYear === y) {
         const label = MONTH_LABELS[m]
-        if (label && (selectedMonthsSidebar.length === 0 || selectedMonthsSidebar[selectedMonthsSidebar.length-1] !== label)) {
-          setSelectedMonthsSidebar((prev)=>{
+        if (label && (selectedMonthsSidebar.length === 0 || selectedMonthsSidebar[selectedMonthsSidebar.length - 1] !== label)) {
+          setSelectedMonthsSidebar((prev) => {
             if (prev.includes(label)) return prev
             return [...prev, label]
           })
@@ -1196,7 +1210,7 @@ export default function MobileMessageApp() {
           {/* Elegant Text Animation */}
           <div className="space-y-4 text-white">
             <div className="overflow-hidden">
-              <div 
+              <div
                 className="text-2xl font-light tracking-wide transform transition-all duration-1000 ease-out"
                 style={{
                   transform: loadingProgress >= 1 ? 'translateY(0)' : 'translateY(20px)',
@@ -1208,7 +1222,7 @@ export default function MobileMessageApp() {
             </div>
 
             <div className="overflow-hidden">
-              <div 
+              <div
                 className="text-xl text-blue-200 transform transition-all duration-1000 ease-out delay-500"
                 style={{
                   transform: loadingProgress >= 2 ? 'translateY(0)' : 'translateY(20px)',
@@ -1220,7 +1234,7 @@ export default function MobileMessageApp() {
             </div>
 
             <div className="overflow-hidden">
-              <div 
+              <div
                 className="text-lg text-purple-200 transform transition-all duration-1000 ease-out delay-1000"
                 style={{
                   transform: loadingProgress >= 3 ? 'translateY(0)' : 'translateY(20px)',
@@ -1236,7 +1250,7 @@ export default function MobileMessageApp() {
             </div>
 
             <div className="overflow-hidden">
-              <div 
+              <div
                 className="text-lg text-pink-200 transform transition-all duration-1000 ease-out delay-1500"
                 style={{
                   transform: loadingProgress >= 4 ? 'translateY(0)' : 'translateY(20px)',
@@ -1248,7 +1262,7 @@ export default function MobileMessageApp() {
             </div>
 
             <div className="overflow-hidden">
-              <div 
+              <div
                 className="text-lg text-green-200 transform transition-all duration-1000 ease-out delay-2000"
                 style={{
                   transform: loadingProgress >= 5 ? 'translateY(0)' : 'translateY(20px)',
@@ -1260,7 +1274,7 @@ export default function MobileMessageApp() {
             </div>
 
             <div className="overflow-hidden">
-              <div 
+              <div
                 className="text-lg text-orange-200 transform transition-all duration-1000 ease-out delay-2500"
                 style={{
                   transform: loadingProgress >= 6 ? 'translateY(0)' : 'translateY(20px)',
@@ -1272,7 +1286,7 @@ export default function MobileMessageApp() {
             </div>
 
             <div className="overflow-hidden">
-              <div 
+              <div
                 className="text-xl font-medium text-white transform transition-all duration-1000 ease-out delay-3000"
                 style={{
                   transform: loadingProgress >= 7 ? 'translateY(0)' : 'translateY(20px)',
@@ -1287,7 +1301,7 @@ export default function MobileMessageApp() {
           {/* Progress Bar */}
           <div className="mt-8 w-full max-w-md mx-auto">
             <div className="bg-gray-800 rounded-full h-2 overflow-hidden">
-              <div 
+              <div
                 className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 h-full rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${(loadingProgress / 7) * 100}%` }}
               />
@@ -1308,25 +1322,37 @@ export default function MobileMessageApp() {
         </div>
       </div>
     )
-  } 
+  }
   if (error) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
-          <h2 className="text-red-400 font-semibold mb-2">Connection Error</h2>
-          <p className="text-gray-300 mb-4">{error}</p>
-          <div className="text-xs text-gray-400 mb-4">
-            <p>Table: {TABLE_NAME}</p>
-            <p>Check console for comprehensive debug info</p>
+        <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl">
+          <h2 className="text-red-400 font-semibold mb-4 text-xl">Connection Error</h2>
+          <div className="text-gray-300 mb-6 space-y-2">
+            <p className="whitespace-pre-line">{error}</p>
           </div>
-          <Button onClick={() => window.location.reload()} className="w-full bg-blue-600 hover:bg-blue-700">
-            Try Again
-          </Button>
+          <div className="text-xs text-gray-400 mb-6 p-3 bg-gray-700 rounded">
+            <p><strong>Table:</strong> {TABLE_NAME}</p>
+            <p><strong>Environment:</strong> {process.env.NODE_ENV}</p>
+            <p><strong>Supabase URL:</strong> {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Configured' : 'Missing'}</p>
+            <p><strong>Supabase Key:</strong> {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Configured' : 'Missing'}</p>
+          </div>
+          <div className="flex gap-3">
+            <Button onClick={() => window.location.reload()} className="flex-1 bg-blue-600 hover:bg-blue-700">
+              Try Again
+            </Button>
+            <Button
+              onClick={() => window.open('https://supabase.com/dashboard', '_blank')}
+              className="flex-1 bg-gray-600 hover:bg-gray-700"
+            >
+              Supabase Dashboard
+            </Button>
+          </div>
         </div>
       </div>
     )
   }
-  
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
       {/* Header */}
@@ -1399,312 +1425,290 @@ export default function MobileMessageApp() {
               Clear
             </button>
           </div>
-          
+
           <div className="grid grid-cols-6 gap-1">
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, love: !prev.emotions.love }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.love 
-                  ? "bg-red-500 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.love
+                ? "bg-red-500 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Love: ${emotionCounts.love} messages`}
             >
               ❤️ {emotionCounts.love}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, joy: !prev.emotions.joy }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.joy 
-                  ? "bg-yellow-500 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.joy
+                ? "bg-yellow-500 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Joy: ${emotionCounts.joy} messages`}
             >
               😂 {emotionCounts.joy}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, sweet: !prev.emotions.sweet }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.sweet 
-                  ? "bg-pink-500 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.sweet
+                ? "bg-pink-500 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Sweet: ${emotionCounts.sweet} messages`}
             >
               🥰 {emotionCounts.sweet}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, support: !prev.emotions.support }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.support 
-                  ? "bg-blue-500 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.support
+                ? "bg-blue-500 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Support: ${emotionCounts.support} messages`}
             >
               😢 {emotionCounts.support}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, celebration: !prev.emotions.celebration }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.celebration 
-                  ? "bg-purple-500 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.celebration
+                ? "bg-purple-500 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Celebration: ${emotionCounts.celebration} messages`}
             >
               🎉 {emotionCounts.celebration}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, deepTalks: !prev.emotions.deepTalks }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.deepTalks 
-                  ? "bg-indigo-500 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.deepTalks
+                ? "bg-indigo-500 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Deep Talks: ${emotionCounts.deepTalks} messages`}
             >
               💭 {emotionCounts.deepTalks}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, fights: !prev.emotions.fights }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.fights 
-                  ? "bg-red-600 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.fights
+                ? "bg-red-600 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Fights: ${emotionCounts.fights} messages`}
             >
               😠 {emotionCounts.fights}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, anxiety: !prev.emotions.anxiety }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.anxiety 
-                  ? "bg-orange-600 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.anxiety
+                ? "bg-orange-600 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Anxiety: ${emotionCounts.anxiety} messages`}
             >
               😰 {emotionCounts.anxiety}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, excitement: !prev.emotions.excitement }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.excitement 
-                  ? "bg-yellow-600 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.excitement
+                ? "bg-yellow-600 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Excitement: ${emotionCounts.excitement} messages`}
             >
               🎉 {emotionCounts.excitement}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, sadness: !prev.emotions.sadness }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.sadness 
-                  ? "bg-blue-600 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.sadness
+                ? "bg-blue-600 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Sadness: ${emotionCounts.sadness} messages`}
             >
               😢 {emotionCounts.sadness}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, gratitude: !prev.emotions.gratitude }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.gratitude 
-                  ? "bg-green-600 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.gratitude
+                ? "bg-green-600 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Gratitude: ${emotionCounts.gratitude} messages`}
             >
               🙏 {emotionCounts.gratitude}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, sexiness: !prev.emotions.sexiness }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.sexiness 
-                  ? "bg-pink-600 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.sexiness
+                ? "bg-pink-600 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Sexiness: ${emotionCounts.sexiness} messages`}
             >
               🔥 {emotionCounts.sexiness}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, flirtation: !prev.emotions.flirtation }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.flirtation 
-                  ? "bg-purple-600 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.flirtation
+                ? "bg-purple-600 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Flirtation: ${emotionCounts.flirtation} messages`}
             >
               😉 {emotionCounts.flirtation}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, intimacy: !prev.emotions.intimacy }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.intimacy 
-                  ? "bg-red-600 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.intimacy
+                ? "bg-red-600 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Intimacy: ${emotionCounts.intimacy} messages`}
             >
               💕 {emotionCounts.intimacy}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, jealousy: !prev.emotions.jealousy }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.jealousy 
-                  ? "bg-yellow-600 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.jealousy
+                ? "bg-yellow-600 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Jealousy: ${emotionCounts.jealousy} messages`}
             >
               😤 {emotionCounts.jealousy}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, nostalgia: !prev.emotions.nostalgia }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.nostalgia 
-                  ? "bg-teal-600 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.nostalgia
+                ? "bg-teal-600 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Nostalgia: ${emotionCounts.nostalgia} messages`}
             >
               😌 {emotionCounts.nostalgia}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, surprise: !prev.emotions.surprise }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.surprise 
-                  ? "bg-orange-600 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.surprise
+                ? "bg-orange-600 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Surprise: ${emotionCounts.surprise} messages`}
             >
               😲 {emotionCounts.surprise}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, confusion: !prev.emotions.confusion }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.confusion 
-                  ? "bg-gray-500 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.confusion
+                ? "bg-gray-500 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Confusion: ${emotionCounts.confusion} messages`}
             >
               🤔 {emotionCounts.confusion}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, relief: !prev.emotions.relief }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.relief 
-                  ? "bg-green-500 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.relief
+                ? "bg-green-500 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Relief: ${emotionCounts.relief} messages`}
             >
               😌 {emotionCounts.relief}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, longing: !prev.emotions.longing }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.longing 
-                  ? "bg-purple-500 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.longing
+                ? "bg-purple-500 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Longing: ${emotionCounts.longing} messages`}
             >
               💔 {emotionCounts.longing}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, playfulness: !prev.emotions.playfulness }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.playfulness 
-                  ? "bg-cyan-600 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.playfulness
+                ? "bg-cyan-600 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Playfulness: ${emotionCounts.playfulness} messages`}
             >
               😄 {emotionCounts.playfulness}
             </button>
             <button
-              onClick={() => setSearchFilters(prev => ({ 
-                ...prev, 
+              onClick={() => setSearchFilters(prev => ({
+                ...prev,
                 emotions: { ...prev.emotions, neutral: !prev.emotions.neutral }
               }))}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                searchFilters.emotions.neutral 
-                  ? "bg-gray-500 text-white" 
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${searchFilters.emotions.neutral
+                ? "bg-gray-500 text-white"
+                : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                }`}
               title={`Neutral: ${emotionCounts.neutral} messages`}
             >
               😐 {emotionCounts.neutral}
@@ -1723,7 +1727,7 @@ export default function MobileMessageApp() {
           {/* Section: Search */}
           <div className="mb-6">
             <h3 className="text-sm font-medium text-gray-300 mb-3">Search</h3>
-            <ToggleGroup type="single" value={showLoveNotes ? 'love' : 'all'} onValueChange={(v)=>{
+            <ToggleGroup type="single" value={showLoveNotes ? 'love' : 'all'} onValueChange={(v) => {
               if (!v) return; if (v === 'love') setShowLoveNotes(true); else setShowLoveNotes(false)
             }} className="grid grid-cols-1 gap-2">
               <ToggleGroupItem value="all" aria-label="All Messages" className={`justify-start ${chipClass}`}>
@@ -1736,7 +1740,7 @@ export default function MobileMessageApp() {
 
             {/* Favorites Toggle */}
             <div className="mt-3">
-              <ToggleGroup type="single" value={showFavoritesOnly ? 'fav' : 'any'} onValueChange={(v)=>{ if (!v) return; setShowFavoritesOnly(v==='fav') }} className="grid grid-cols-1 gap-2" disabled={!showLoveNotes}>
+              <ToggleGroup type="single" value={showFavoritesOnly ? 'fav' : 'any'} onValueChange={(v) => { if (!v) return; setShowFavoritesOnly(v === 'fav') }} className="grid grid-cols-1 gap-2" disabled={!showLoveNotes}>
                 <ToggleGroupItem value="any" className={`justify-start ${chipClass}`}>
                   <span className="mr-2">⭐️</span> Any
                 </ToggleGroupItem>
@@ -1750,8 +1754,8 @@ export default function MobileMessageApp() {
           {/* Section: Year & Month Filter */}
           <div className="mb-6">
             <h3 className="text-sm font-medium text-gray-300 mb-3">Year Filter</h3>
-            <ToggleGroup type="single" value={selectedYear?.toString() ?? 'all'} onValueChange={(v)=>{
-              if (!v) return; if (v==='all') selectYear(null); else selectYear(parseInt(v))
+            <ToggleGroup type="single" value={selectedYear?.toString() ?? 'all'} onValueChange={(v) => {
+              if (!v) return; if (v === 'all') selectYear(null); else selectYear(parseInt(v))
             }} className="grid grid-cols-3 gap-2 mb-3">
               <ToggleGroupItem value={'all'} aria-label="All Years" className={chipClass}>All</ToggleGroupItem>
               {yearData.map((y) => (
@@ -1762,15 +1766,15 @@ export default function MobileMessageApp() {
             {selectedYear && (
               <>
                 <p className="text-xs text-gray-400 mb-2">Months</p>
-                <ToggleGroup type="multiple" value={selectedMonthsSidebar} onValueChange={(vals)=>{
+                <ToggleGroup type="multiple" value={selectedMonthsSidebar} onValueChange={(vals) => {
                   setSelectedMonthsSidebar(vals)
                   if (vals.length > 0 && selectedYear) {
-                    const latest = vals[vals.length-1]
+                    const latest = vals[vals.length - 1]
                     const month = MONTH_LABELS.indexOf(latest) + 1
-                    if (month>0) scrollToFirstOfMonth(selectedYear, month)
+                    if (month > 0) scrollToFirstOfMonth(selectedYear, month)
                   }
                 }} className="grid grid-cols-4 gap-2">
-                  {MONTH_LABELS.map((label)=> (
+                  {MONTH_LABELS.map((label) => (
                     <ToggleGroupItem key={label} value={label} className={chipClass}>{label}</ToggleGroupItem>
                   ))}
                 </ToggleGroup>
@@ -1811,9 +1815,9 @@ export default function MobileMessageApp() {
                   <div key={dayKey} data-day-key={dayKey}>
                     <DayHeader date={dayDate} />
                     {groups.map((group) => (
-                      <MessageGroup 
-                        key={group.id} 
-                        group={group} 
+                      <MessageGroup
+                        key={group.id}
+                        group={group}
                         searchMode={searchMode}
                         showLoveNotes={showLoveNotes}
                         isPlaying={isPlaying}
@@ -1843,12 +1847,12 @@ export default function MobileMessageApp() {
             <EnhancedLoveNotesAudioPlayer
               audioFiles={audioFiles}
               currentIndex={currentIndex}
-              onIndexChange={(idx)=>{ if (audioFiles[idx]) play(audioFiles[idx], idx) }}
-              onPlayAll={()=>{ if (audioFiles.length>0) play(audioFiles[0], 0) }}
-              onStop={()=>{ pause(); reset() }}
+              onIndexChange={(idx) => { if (audioFiles[idx]) play(audioFiles[idx], idx) }}
+              onPlayAll={() => { if (audioFiles.length > 0) play(audioFiles[0], 0) }}
+              onStop={() => { pause(); reset() }}
               isPlaying={isPlaying}
               autoPlay={autoPlay}
-              onAutoPlayToggle={()=> setAutoPlay(!autoPlay)}
+              onAutoPlayToggle={() => setAutoPlay(!autoPlay)}
               showStats={false}
             />
           </div>
@@ -1866,24 +1870,24 @@ export default function MobileMessageApp() {
             <div className="flex-1 overflow-y-auto space-y-6">
               <div>
                 <h3 className="text-sm font-medium text-gray-300 mb-3">Search</h3>
-                <ToggleGroup type="single" value={showLoveNotes ? 'love' : 'all'} onValueChange={(v)=>{ if (!v) return; setShowLoveNotes(v==='love') }} className="grid grid-cols-1 gap-2">
+                <ToggleGroup type="single" value={showLoveNotes ? 'love' : 'all'} onValueChange={(v) => { if (!v) return; setShowLoveNotes(v === 'love') }} className="grid grid-cols-1 gap-2">
                   <ToggleGroupItem value="all" className="justify-start"><span className="mr-2">🌍</span> All Messages</ToggleGroupItem>
-                  <ToggleGroupItem value="love" className="justify-start"><Heart className="h-4 w-4 mr-2"/> Love Notes</ToggleGroupItem>
+                  <ToggleGroupItem value="love" className="justify-start"><Heart className="h-4 w-4 mr-2" /> Love Notes</ToggleGroupItem>
                 </ToggleGroup>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-300 mb-3">Year Filter</h3>
-                <ToggleGroup type="single" value={selectedYear?.toString() ?? 'all'} onValueChange={(v)=>{ if (!v) return; if (v==='all') selectYear(null); else selectYear(parseInt(v)) }} className="grid grid-cols-3 gap-2 mb-3">
+                <ToggleGroup type="single" value={selectedYear?.toString() ?? 'all'} onValueChange={(v) => { if (!v) return; if (v === 'all') selectYear(null); else selectYear(parseInt(v)) }} className="grid grid-cols-3 gap-2 mb-3">
                   <ToggleGroupItem value={'all'} aria-label="All Years">All</ToggleGroupItem>
-                  {yearData.map((y)=> (
+                  {yearData.map((y) => (
                     <ToggleGroupItem key={y.year} value={String(y.year)}>{y.year}</ToggleGroupItem>
                   ))}
                 </ToggleGroup>
                 {selectedYear && (
                   <>
                     <p className="text-xs text-gray-400 mb-2">Months</p>
-                    <ToggleGroup type="multiple" value={selectedMonthsSidebar} onValueChange={(vals)=>{ setSelectedMonthsSidebar(vals); if (vals.length>0 && selectedYear){ const latest=vals[vals.length-1]; const m=MONTH_LABELS.indexOf(latest)+1; if (m>0) scrollToFirstOfMonth(selectedYear, m) } }} className="grid grid-cols-4 gap-2">
-                      {MONTH_LABELS.map((label)=> (<ToggleGroupItem key={label} value={label}>{label}</ToggleGroupItem>))}
+                    <ToggleGroup type="multiple" value={selectedMonthsSidebar} onValueChange={(vals) => { setSelectedMonthsSidebar(vals); if (vals.length > 0 && selectedYear) { const latest = vals[vals.length - 1]; const m = MONTH_LABELS.indexOf(latest) + 1; if (m > 0) scrollToFirstOfMonth(selectedYear, m) } }} className="grid grid-cols-4 gap-2">
+                      {MONTH_LABELS.map((label) => (<ToggleGroupItem key={label} value={label}>{label}</ToggleGroupItem>))}
                     </ToggleGroup>
                   </>
                 )}
